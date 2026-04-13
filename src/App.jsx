@@ -20,6 +20,9 @@ const ROLE_LIST = [ROLES.KIKAKU, ROLES.SETUP, ROLES.EIGYO];
 const KPI_ALLOWED_ROLES = [ROLES.KIKAKU, ROLES.EIGYO];
 // 担当者管理を閲覧・編集できるロール（営業企画 = 企画部のみ）
 const STAFF_ADMIN_ROLES = [ROLES.KIKAKU];
+// 介援隊クエスト（外部リンク）を表示できるロール
+const KAIENTAI_QUEST_ROLES = [ROLES.KIKAKU, ROLES.EIGYO];
+const KAIENTAI_QUEST_URL = 'https://kmatsue-hue.github.io/kaientai-quest-app/';
 
 // --- 日本円フォーマット（億・万単位） ---
 const formatJPY = (n) => {
@@ -234,22 +237,20 @@ const Badge = ({ children, color = 'purple' }) => {
 };
 
 const RANK_STYLES = {
-  A: { bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-200',  label: 'A ランク' },
-  B: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', label: 'B ランク' },
-  C: { bg: 'bg-gray-100',   text: 'text-gray-600',   border: 'border-gray-200',   label: 'C ランク' },
+  A: { text: 'text-emerald-600', label: 'A ランク' },
+  B: { text: 'text-amber-600',   label: 'B ランク' },
+  C: { text: 'text-gray-500',    label: 'C ランク' },
 };
 
 const RankBadge = ({ rank, large = false }) => {
   const s = RANK_STYLES[rank] || RANK_STYLES['C'];
   return large ? (
-    <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-xl border font-bold ${s.bg} ${s.text} ${s.border}`}>
-      <span className="text-2xl leading-none">{rank || '—'}</span>
-      <span className="text-xs font-semibold opacity-70">ランク</span>
+    <span className="inline-flex items-baseline gap-2">
+      <span className={`text-3xl font-black leading-none ${s.text}`}>{rank || '—'}</span>
+      <span className="text-xs font-semibold text-gray-400">ランク</span>
     </span>
   ) : (
-    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border-2 text-sm font-extrabold ${s.bg} ${s.text} ${s.border}`}>
-      {rank || '—'}
-    </span>
+    <span className={`text-2xl font-black leading-none ${s.text}`}>{rank || '—'}</span>
   );
 };
 
@@ -334,7 +335,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
             const isPair   = marginSteps.length > 1;
             const midPct   = isPair ? (startPct + endPct) / 2 : startPct;
             const branchOn = marginActive || marginCompleted;
-            const NODE_R = 24;
+            const NODE_R = 28;
             const CONTAINER_H = 130;
             const NODE_CY = 106;       // 円下端を容器下端に合わせる（CONTAINER_H - NODE_R）
             return (
@@ -432,11 +433,11 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
           <div className="relative flex items-start w-full pt-6 pb-2">
             {/* 背景線（円中心 = pt-6(24) + 上部ラベル領域(96) + 円半径(26) = 146） */}
             <div className="absolute h-1 bg-gray-100 rounded-full pointer-events-none"
-                 style={{ top: 24 + 96 + 26 - 2, left: `${halfPct}%`, right: `${halfPct}%`, opacity: 0.6 }} />
+                 style={{ top: 24 + 96 + 16 + 32 - 2, left: `${halfPct}%`, right: `${halfPct}%`, opacity: 0.6 }} />
             {/* 進捗線（グラデーション） */}
             {currentIndex > 0 && (
               <div className="absolute h-1 bg-gradient-to-r from-purple-400 via-purple-600 to-indigo-600 rounded-full pointer-events-none transition-all duration-700"
-                   style={{ top: 24 + 96 + 26 - 2, left: `${halfPct}%`, width: `${progressW}%`, opacity: 0.5 }} />
+                   style={{ top: 24 + 96 + 16 + 32 - 2, left: `${halfPct}%`, width: `${progressW}%`, opacity: 0.5 }} />
             )}
 
             {PHASES.map((phase, index) => {
@@ -457,7 +458,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                   className="relative flex flex-col items-center flex-1 group focus:outline-none px-1"
                 >
                   {/* 上部ラベル領域（タスク → ステータス → フェーズ名 / 下端を円に揃える） */}
-                  <div className="flex flex-col items-center justify-end h-[96px] w-full mb-2">
+                  <div className="flex flex-col items-center justify-end h-[96px] w-full mb-4">
                     {/* 未完了タスク */}
                     <div className="h-5 mb-1">
                       {incomplete > 0 && (
@@ -488,7 +489,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                   </div>
 
                   {/* 円ノード（ラッパーに pipe を相対配置） */}
-                  <div className="relative w-[52px] h-[52px] flex items-center justify-center">
+                  <div className="relative w-16 h-16 flex items-center justify-center">
                     {/* 進行中の波紋（ノード全体から拡散） */}
                     {isActive && (
                       <>
@@ -498,7 +499,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                     )}
                     <div className={[
                       'relative z-10 flex items-center justify-center rounded-full font-extrabold transition-all duration-300',
-                      'w-[52px] h-[52px] text-base',
+                      'w-16 h-16 text-base',
                       isCompleted ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-200' : '',
                       isActive    ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-2xl shadow-purple-300 ring-4 ring-white outline outline-2 outline-purple-300 scale-110' : '',
                       isPending   ? 'bg-white text-gray-400 border-2 border-gray-200 group-hover:border-purple-300 group-hover:text-purple-500 group-hover:scale-105' : '',
@@ -558,7 +559,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
             const branchActive = subActive || subCompleted;
             const stroke = branchActive ? '#2563eb' : '#cbd5e1';
             // ノード中心の Y 位置（px）。本流ノードから垂直パイプで降りた先で水平線と接続。
-            const NODE_R  = 24;          // 円半径 (w-12 = 48px)
+            const NODE_R  = 28;          // 円半径 (w-12 = 48px)
             const NODE_CY = 80;          // サブ行内のノード中心 Y
             const CONTAINER_H = 220;     // ノード下のラベル + 分岐ラベル領域
             return (
@@ -1118,57 +1119,36 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
 // --- ランク分布 円グラフ（ドーナツ） ---
 const RankPieChart = ({ rankCounts }) => {
   const data = [
-    { label: 'A', count: rankCounts.A, color: '#10b981', text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-    { label: 'B', count: rankCounts.B, color: '#f59e0b', text: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200' },
-    { label: 'C', count: rankCounts.C, color: '#9ca3af', text: 'text-gray-600',    bg: 'bg-gray-50',    border: 'border-gray-200' },
+    { label: 'A', count: rankCounts.A, bar: 'bg-emerald-500', text: 'text-emerald-700', soft: 'bg-emerald-50' },
+    { label: 'B', count: rankCounts.B, bar: 'bg-amber-500',   text: 'text-amber-700',   soft: 'bg-amber-50' },
+    { label: 'C', count: rankCounts.C, bar: 'bg-gray-400',    text: 'text-gray-600',    soft: 'bg-gray-50' },
   ];
   const total = data.reduce((s, d) => s + d.count, 0);
-  const size = 110, stroke = 18, radius = (size - stroke) / 2, cx = size / 2, cy = size / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  let offset = 0;
-  const segments = total === 0 ? [] : data.map(d => {
-    const fraction = d.count / total;
-    const dash = fraction * circumference;
-    const seg = { ...d, dash, gap: circumference - dash, offset: -offset };
-    offset += dash;
-    return seg;
-  });
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
-          <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={stroke} />
-          {segments.map((s, i) => (
-            <circle
-              key={i}
-              cx={cx} cy={cy} r={radius}
-              fill="none"
-              stroke={s.color}
-              strokeWidth={stroke}
-              strokeDasharray={`${s.dash} ${s.gap}`}
-              strokeDashoffset={s.offset}
-              strokeLinecap="butt"
-              className="transition-all duration-700"
-            />
-          ))}
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-extrabold text-gray-900 leading-none">{total}</span>
-          <span className="text-[10px] font-bold text-gray-400 mt-0.5">件</span>
-        </div>
+    <div>
+      {/* スタックド水平バー */}
+      <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-gray-100">
+        {total === 0 ? null : data.map(d => {
+          const pct = (d.count / total) * 100;
+          if (pct === 0) return null;
+          return <div key={d.label} className={`${d.bar} h-full transition-all duration-700`} style={{ width: `${pct}%` }} />;
+        })}
       </div>
-      <div className="flex-1 space-y-1.5">
+
+      {/* ランク別カード（アルファベットを大きく＆色付き） */}
+      <div className="grid grid-cols-3 gap-2 mt-3">
         {data.map(d => {
           const pct = total === 0 ? 0 : Math.round((d.count / total) * 100);
           return (
-            <div key={d.label} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className={`w-6 h-6 rounded-md border flex items-center justify-center font-extrabold ${d.text} ${d.bg} ${d.border}`}>{d.label}</span>
-                <span className="font-bold text-gray-700">{d.count}件</span>
+            <div key={d.label} className="rounded-lg px-2 py-2 bg-gray-50/60">
+              <div className="flex items-baseline justify-between">
+                <span className={`text-2xl font-black leading-none ${d.text}`}>{d.label}</span>
+                <span className="text-[10px] font-bold text-gray-400 tabular-nums">{pct}%</span>
               </div>
-              <span className="font-bold text-gray-400 tabular-nums">{pct}%</span>
+              <p className="text-base font-extrabold text-gray-900 tabular-nums leading-tight mt-1">
+                {d.count}<span className="text-[10px] font-bold text-gray-400 ml-0.5">件</span>
+              </p>
             </div>
           );
         })}
@@ -1178,7 +1158,7 @@ const RankPieChart = ({ rankCounts }) => {
 };
 
 // --- ダッシュボード ---
-const Dashboard = ({ projects, onSelectProject, onAddProject }) => {
+const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -1274,44 +1254,50 @@ const Dashboard = ({ projects, onSelectProject, onAddProject }) => {
   const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
   const weekday = ['日', '月', '火', '水', '木', '金', '土'][today.getDay()];
   const wonProjects = activeProjects.filter(p => ['販売契約締結', '施工・納品', '一次保守'].includes(p.status));
+  const wonRevenue = wonProjects.reduce((s, p) => s + (p.financial?.expectedRevenue || 0), 0);
+  const cumulativeProfit = wonProjects.reduce((s, p) => s + ((p.financial?.expectedRevenue || 0) - (p.financial?.wholesalePriceSetup || 0)), 0);
 
   return (
     <div className="space-y-8 relative">
-      {/* シンプルヘッダー */}
-      <header className="flex flex-wrap items-end justify-between gap-3 pb-2">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">ダッシュボード</h1>
-          <p className="text-gray-500 text-sm mt-1">{dateStr}（{weekday}）</p>
-        </div>
-      </header>
-
       {/* KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-5 hover:border-gray-200 transition-colors">
-          <p className="text-xs font-semibold text-gray-500">進行中案件</p>
-          <p className="text-3xl font-bold text-gray-900 mt-3 tabular-nums">
-            {activeProjects.length}<span className="text-sm font-medium text-gray-400 ml-1">件</span>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="p-4 hover:border-gray-200 transition-colors">
+          <p className="text-sm font-bold text-gray-700">進行中案件</p>
+          <p className="text-2xl font-extrabold text-gray-900 mt-2 tabular-nums">
+            {activeProjects.length}<span className="text-sm font-bold text-gray-400 ml-1">件</span>
           </p>
-          <p className="text-xs text-gray-400 mt-2">受注済み {wonProjects.length} 件</p>
+          <p className="text-xs text-gray-500 font-semibold mt-1.5">受注済み {wonProjects.length} 件</p>
         </Card>
 
-        <Card className="p-5 hover:border-gray-200 transition-colors">
-          <p className="text-xs font-semibold text-gray-500">想定売上合計</p>
-          <p className="text-3xl font-bold text-gray-900 mt-3 tabular-nums">{revenueJPY}</p>
-          <p className="text-xs text-gray-400 mt-2">全パイプライン</p>
+        <Card className="p-4 hover:border-gray-200 transition-colors">
+          <p className="text-sm font-bold text-gray-700">想定売上合計</p>
+          <p className="text-2xl font-extrabold text-gray-900 mt-2 tabular-nums">{revenueJPY}</p>
+          <p className="text-xs text-gray-500 font-semibold mt-1.5">全パイプライン</p>
         </Card>
 
-        <Card className="p-5 hover:border-gray-200 transition-colors">
-          <p className="text-xs font-semibold text-gray-500 mb-2">案件ランク分布</p>
+        <Card className="p-4 hover:border-gray-200 transition-colors">
+          <p className="text-sm font-bold text-gray-700">売上実績</p>
+          <p className="text-2xl font-extrabold text-gray-900 mt-2 tabular-nums">{formatJPYShort(wonRevenue)}</p>
+          <p className="text-xs text-gray-500 font-semibold mt-1.5">受注 {wonProjects.length} 件</p>
+          {canViewProfit && (
+            <p className="text-xs font-bold text-emerald-700 mt-2 pt-2 border-t border-emerald-100 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              累積利益 <span className="ml-auto tabular-nums">{formatJPYShort(cumulativeProfit)}</span>
+            </p>
+          )}
+        </Card>
+
+        <Card className="p-4 hover:border-gray-200 transition-colors">
+          <p className="text-sm font-bold text-gray-700 mb-2">案件ランク分布</p>
           <RankPieChart rankCounts={rankCounts} />
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="space-y-6">
         {/* 案件一覧 */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
           <Card>
-            <div className="p-6 border-b border-gray-100 flex flex-wrap gap-3 justify-between items-center bg-white relative z-20">
+            <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap gap-3 justify-between items-center bg-white relative z-20">
               <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
                 案件一覧
                 <span className="text-xs font-semibold text-gray-400 tabular-nums">{filteredProjects.length}件</span>
@@ -1347,7 +1333,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject }) => {
                         <button onClick={clearFilters} className="text-xs text-purple-600 hover:underline">クリア</button>
                       </div>
                       <div className="px-4 py-2">
-                        <span className="text-xs font-bold text-gray-800 mb-2 block">販売ケース</span>
+                        <span className="text-xs font-bold text-gray-800 mb-2 block">販売スキーム</span>
                         {['パターン1（完全卸し）', 'パターン2（分離）', 'パターン3（完全紹介）'].map(pattern => (
                           <label
                             key={pattern}
@@ -1405,75 +1391,87 @@ const Dashboard = ({ projects, onSelectProject, onAddProject }) => {
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto relative z-10">
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50/50 border-b border-gray-100 text-gray-500">
+                <thead className="border-b border-gray-100 text-gray-400">
                   <tr>
-                    <th className="px-6 py-4 font-semibold">案件名 / エンドユーザー</th>
-                    <th className="px-6 py-4 font-semibold">ステータス</th>
-                    <th className="px-6 py-4 font-semibold">想定金額</th>
-                    <th className="px-6 py-4 font-semibold">ランク</th>
-                    <th className="px-6 py-4 font-semibold text-right"></th>
+                    <th className="px-5 py-3 font-semibold text-xs">案件名 / エンドユーザー</th>
+                    <th className="px-5 py-3 font-semibold text-xs">販売スキーム</th>
+                    <th className="px-5 py-3 font-semibold text-xs">ステータス</th>
+                    <th className="px-5 py-3 font-semibold text-xs">想定金額</th>
+                    <th className="px-5 py-3 font-semibold text-xs">ランク</th>
+                    <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredProjects.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400 font-medium">
+                      <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400 font-medium">
                         条件に一致する案件がありません
                       </td>
                     </tr>
                   )}
                   {filteredProjects.map(project => {
-                    const patternColorClass = project.salesPattern?.includes('パターン1') ? 'bg-sky-500' :
-                      project.salesPattern?.includes('パターン2') ? 'bg-yellow-500' :
-                      project.salesPattern?.includes('パターン3') ? 'bg-green-500' : 'bg-transparent';
+                    const phaseIdx = PHASES.indexOf(project.status);
+                    const progressPct = ((phaseIdx + 1) / PHASES.length) * 100;
                     return (
                       <tr
                         key={project.id}
-                        className={`transition-all group cursor-pointer ${
-                          project.isLost
-                            ? 'grayscale opacity-75 hover:opacity-90 bg-gray-50/30'
-                            : 'hover:bg-purple-50/50'
+                        className={`group cursor-pointer transition-colors ${
+                          project.isLost ? 'opacity-60 hover:opacity-80' : 'hover:bg-gray-50'
                         }`}
                         onClick={() => onSelectProject(project.id)}
                       >
-                        <td className="px-6 py-4 relative">
-                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${patternColorClass}`} />
-                          <div className="font-semibold text-gray-900">
+                        <td className="px-5 py-3.5">
+                          <div className="font-bold text-gray-900 leading-tight">
                             {project.name}
-                            {project.isLost && <span className="ml-2 text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">LOST</span>}
+                            {project.isLost && <span className="ml-2 text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">LOST</span>}
                           </div>
-                          <div className="text-gray-500 text-xs mt-1.5 flex items-center">
-                            <Building className="w-3.5 h-3.5 mr-1.5" />{project.endUser.companyName}
+                          <div className="text-gray-500 text-xs mt-1">
+                            {project.endUser.companyName}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className={`text-xs font-bold mb-1 ${project.isLost ? 'text-gray-500' : 'text-purple-700'}`}>
-                            {project.status}
+                        <td className="px-5 py-3.5">
+                          {(() => {
+                            const p = project.salesPattern || '';
+                            const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500',    text: 'text-sky-700',    short: 'パターン①', sub: '完全卸し' }
+                                      : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: 'パターン②', sub: '分離' }
+                                      : p.includes('パターン3') ? { dot: 'bg-green-500',  text: 'text-green-700',  short: 'パターン③', sub: '完全紹介' }
+                                      : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—', sub: '' };
+                            return (
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-block w-2 h-2 rounded-full ${cfg.dot}`} />
+                                <div>
+                                  <div className={`text-xs font-bold ${cfg.text}`}>{cfg.short}</div>
+                                  {cfg.sub && <div className="text-[10px] text-gray-400 font-semibold">{cfg.sub}</div>}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-5 py-3.5 min-w-[200px]">
+                          <div className={`text-xs font-bold mb-1.5 ${project.isLost ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {project.status} <span className="text-gray-400 font-semibold tabular-nums ml-1">{phaseIdx + 1}/{PHASES.length}</span>
                           </div>
                           <MiniArrowDiagram currentPhase={project.status} />
                         </td>
-                        <td className="px-6 py-4 font-medium text-gray-700 tabular-nums">
+                        <td className="px-5 py-3.5 font-semibold text-gray-700 tabular-nums">
                           {formatJPY(project.financial.expectedRevenue || 0)}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-3.5">
                           <RankBadge rank={project.rank} />
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {project.isLost && (
-                              <button
-                                onClick={e => { e.stopPropagation(); setLostInfoModal(project); }}
-                                className="px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 transition-colors whitespace-nowrap"
-                              >
-                                失注情報
-                              </button>
-                            )}
-                            <button className="text-purple-600 hover:text-purple-800 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-purple-100 rounded-full flex-shrink-0">
-                              <ChevronRight className="w-5 h-5" />
+                        <td className="px-5 py-3.5 text-right">
+                          {project.isLost ? (
+                            <button
+                              onClick={e => { e.stopPropagation(); setLostInfoModal(project); }}
+                              className="px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-full"
+                            >
+                              失注情報
                             </button>
-                          </div>
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-purple-600 inline" />
+                          )}
                         </td>
                       </tr>
                     );
@@ -1484,28 +1482,6 @@ const Dashboard = ({ projects, onSelectProject, onAddProject }) => {
           </Card>
         </div>
 
-        {/* 右サイドバー */}
-        <div className="space-y-6">
-          <Card className="p-5">
-            <h3 className="text-base font-bold text-gray-900 mb-5">販売ケース別 売上見込み</h3>
-            <div className="space-y-5">
-              {patternRevenue.map(item => (
-                <div key={item.label} className="group">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-700 font-semibold flex items-center gap-2">
-                      <span className={`inline-block w-2 h-2 rounded-full ${item.color}`} />
-                      {item.label}
-                    </span>
-                    <span className="font-bold text-gray-900 tabular-nums">{formatJPYShort(item.value)}</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                    <div className={`${item.color} h-2 rounded-full transition-all duration-700 group-hover:brightness-110`} style={{ width: `${item.pct}%` }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
       </div>
 
       {/* 失注情報モーダル */}
@@ -1605,7 +1581,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject }) => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">販売ケース</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">販売スキーム</label>
                   <select
                     value={newProject.salesPattern}
                     onChange={(e) => setNewProject({ ...newProject, salesPattern: e.target.value })}
@@ -1649,6 +1625,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject }) => {
 // --- 案件詳細 ---
 const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
   const [selectedPhase, setSelectedPhase] = useState(project.status);
+  const [infoTab, setInfoTab] = useState('endUser'); // 'endUser' | 'financial' | 'project' | 'log'
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editInfo, setEditInfo] = useState({ ...project });
   const [newLog, setNewLog] = useState({ content: '', nextAction: '', nextDate: '' });
@@ -1879,132 +1856,147 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
         </div>
       </div>
 
-      {/* 基本情報カード + 活動ログ（右端） */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* 左側: 3 つの情報カード */}
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Card className="p-3">
-            <h3 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Building className="w-3 h-3 text-purple-500" />エンドユーザー
-            </h3>
-            <dl className="divide-y divide-gray-50">
+      {/* 情報タブ（クリックで詳細展開） */}
+      <Card className="p-0 overflow-hidden">
+        {/* タブヘッダー */}
+        <div className="flex border-b border-gray-100 bg-gray-50/50">
+          {[
+            { key: 'endUser',   label: 'エンドユーザー', icon: Building,       color: 'text-purple-600 border-purple-500' },
+            { key: 'financial', label: '財務情報',       icon: BarChart3,      color: 'text-sky-600 border-sky-500' },
+            { key: 'project',   label: '案件情報',       icon: FileText,       color: 'text-emerald-600 border-emerald-500' },
+            { key: 'log',       label: '活動ログ',       icon: MessageSquare,  color: 'text-orange-600 border-orange-500', badge: project.logs.length },
+          ].map(tab => {
+            const TabIcon = tab.icon;
+            const active = infoTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setInfoTab(tab.key)}
+                className={`flex-1 px-4 py-3.5 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
+                  active
+                    ? `bg-white ${tab.color}`
+                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-white/60'
+                }`}
+              >
+                <TabIcon className="w-4 h-4" />
+                {tab.label}
+                {tab.badge != null && tab.badge > 0 && (
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${active ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{tab.badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* タブ内容 */}
+        <div className="p-5">
+          {infoTab === 'endUser' && (
+            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
               {[
                 ['企業・施設名', project.endUser.companyName, true],
                 ['担当部署', project.endUser.department],
                 ['連絡先', project.endUser.contact],
                 ['販売店', project.endUser.retailerName],
               ].map(([label, value, bold]) => (
-                <div key={label} className="grid grid-cols-[64px_1fr] gap-1.5 py-1">
-                  <dt className="text-[10px] text-gray-400 font-semibold pt-0.5">{label}</dt>
-                  <dd className={`text-[11px] leading-snug ${bold ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{value || <span className="text-gray-300 font-medium">—</span>}</dd>
+                <div key={label} className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                  <dt className="text-xs text-gray-400 font-semibold">{label}</dt>
+                  <dd className={`text-sm leading-snug ${bold ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{value || <span className="text-gray-300 font-medium">—</span>}</dd>
                 </div>
               ))}
             </dl>
-          </Card>
+          )}
 
-          <Card className="p-3">
-            <h3 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <BarChart3 className="w-3 h-3 text-sky-500" />財務情報
-            </h3>
-            <div className="mb-2">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">想定全体売上</p>
-              <p className="text-lg font-extrabold text-gray-900 tabular-nums leading-tight mt-0.5">{formatJPYShort(project.financial.expectedRevenue || 0)}</p>
-            </div>
-            <dl className="divide-y divide-gray-50">
-              {project.financial.wholesalePriceSetup && (
-                <div className="grid grid-cols-[64px_1fr] gap-1.5 py-1">
-                  <dt className="text-[10px] text-gray-400 font-semibold pt-0.5">卸値</dt>
-                  <dd className="text-[11px] font-semibold text-gray-700 tabular-nums">{formatJPYShort(project.financial.wholesalePriceSetup)}</dd>
-                </div>
-              )}
-              {project.financial.referralFeeRate && (
-                <div className="grid grid-cols-[64px_1fr] gap-1.5 py-1">
-                  <dt className="text-[10px] text-gray-400 font-semibold pt-0.5">紹介料</dt>
-                  <dd className="text-[11px] font-semibold text-gray-700 tabular-nums">{project.financial.referralFeeRate}% / {formatJPYShort(project.financial.referralFeeAmount || 0)}</dd>
-                </div>
-              )}
-              <div className="grid grid-cols-[64px_1fr] gap-1.5 py-1 items-center">
-                <dt className="text-[10px] text-gray-400 font-semibold">案件ランク</dt>
-                <dd><RankBadge rank={project.rank} /></dd>
+          {infoTab === 'financial' && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">想定全体売上</p>
+                <p className="text-3xl font-extrabold text-gray-900 tabular-nums leading-tight mt-1">{formatJPYShort(project.financial.expectedRevenue || 0)}</p>
               </div>
-            </dl>
-          </Card>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                {project.financial.wholesalePriceSetup && (
+                  <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                    <dt className="text-xs text-gray-400 font-semibold">卸値</dt>
+                    <dd className="text-sm font-semibold text-gray-700 tabular-nums">{formatJPYShort(project.financial.wholesalePriceSetup)}</dd>
+                  </div>
+                )}
+                {project.financial.referralFeeRate && (
+                  <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                    <dt className="text-xs text-gray-400 font-semibold">紹介料</dt>
+                    <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.financial.referralFeeRate}% / {formatJPYShort(project.financial.referralFeeAmount || 0)}</dd>
+                  </div>
+                )}
+                <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
+                  <dt className="text-xs text-gray-400 font-semibold">案件ランク</dt>
+                  <dd><RankBadge rank={project.rank} /></dd>
+                </div>
+              </dl>
+            </div>
+          )}
 
-          <Card className="p-3">
-            <h3 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <FileText className="w-3 h-3 text-emerald-500" />案件情報
-            </h3>
-            <dl className="divide-y divide-gray-50">
-              <div className="grid grid-cols-[64px_1fr] gap-1.5 py-1">
-                <dt className="text-[10px] text-gray-400 font-semibold pt-0.5">担当者</dt>
-                <dd className="text-[11px]">
+          {infoTab === 'project' && (
+            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+              <div className="grid grid-cols-[100px_1fr] gap-2">
+                <dt className="text-xs text-gray-400 font-semibold pt-0.5">担当者</dt>
+                <dd className="text-sm">
                   <span className="font-bold text-gray-900">{project.picSetup || <span className="text-gray-300 font-medium">—</span>}</span>
                   {project.picSetupContact && (
-                    <span className="block mt-0.5 text-[10px] font-semibold text-purple-700">
-                      <MessageSquare className="w-2.5 h-2.5 inline mr-1" />{project.picSetupContact}
+                    <span className="block mt-1 text-xs font-semibold text-purple-700">
+                      <MessageSquare className="w-3 h-3 inline mr-1" />{project.picSetupContact}
                     </span>
                   )}
                 </dd>
               </div>
-              <div className="grid grid-cols-[64px_1fr] gap-1.5 py-1">
-                <dt className="text-[10px] text-gray-400 font-semibold pt-0.5">開始日</dt>
-                <dd className="text-[11px] font-semibold text-gray-700 tabular-nums">{project.startDate || <span className="text-gray-300 font-medium">—</span>}</dd>
+              <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                <dt className="text-xs text-gray-400 font-semibold">開始日</dt>
+                <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.startDate || <span className="text-gray-300 font-medium">—</span>}</dd>
               </div>
-              <div className="grid grid-cols-[64px_1fr] gap-1.5 py-1">
-                <dt className="text-[10px] text-gray-400 font-semibold pt-0.5">クローズ予定</dt>
-                <dd className="text-[11px] font-semibold text-gray-700 tabular-nums">{project.expectedCloseDate || <span className="text-gray-300 font-medium">—</span>}</dd>
+              <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                <dt className="text-xs text-gray-400 font-semibold">クローズ予定</dt>
+                <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.expectedCloseDate || <span className="text-gray-300 font-medium">—</span>}</dd>
               </div>
               {project.endUser.needsAndIssues && (
-                <div className="grid grid-cols-[64px_1fr] gap-1.5 py-1">
-                  <dt className="text-[10px] text-gray-400 font-semibold pt-0.5">ニーズ</dt>
-                  <dd className="text-[11px] font-semibold text-gray-700 leading-snug">{project.endUser.needsAndIssues}</dd>
+                <div className="grid grid-cols-[100px_1fr] gap-2 md:col-span-2">
+                  <dt className="text-xs text-gray-400 font-semibold pt-0.5">ニーズ・課題</dt>
+                  <dd className="text-sm font-semibold text-gray-700 leading-relaxed">{project.endUser.needsAndIssues}</dd>
                 </div>
               )}
             </dl>
-          </Card>
-        </div>
+          )}
 
-        {/* 右側: 活動ログ（スクロール） */}
-        <Card className="p-4 lg:col-span-1 flex flex-col" style={{ maxHeight: '420px' }}>
-          <div className="flex items-center justify-between mb-3 flex-shrink-0">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-              <MessageSquare className="w-4 h-4 text-purple-500" />
-              活動ログ
-            </h3>
-            <span className="text-[10px] font-bold text-gray-400 tabular-nums">{project.logs.length}件</span>
-          </div>
-          <div className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-3">
-            {project.logs.map(log => (
-              <div key={log.id} className={`flex gap-2 ${log.type === 'alert' ? 'bg-red-50/60 p-2 rounded-lg border border-red-100' : ''}`}>
-                <div className="flex-shrink-0 mt-0.5">
-                  {log.type === 'alert'
-                    ? <AlertCircle className="w-4 h-4 text-red-600" />
-                    : <div className="w-5 h-5 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-purple-600" /></div>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-gray-500 tabular-nums">{log.date}</p>
-                  <p className="text-xs text-gray-800 font-medium leading-snug mt-0.5 break-words">{log.content}</p>
-                  {log.nextAction && (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
-                      <span className="bg-purple-50 px-2 py-0.5 rounded-full text-purple-700 font-bold border border-purple-100 inline-flex items-center">
-                        <ChevronRight className="w-2.5 h-2.5 mr-0.5" />{log.nextAction}
-                      </span>
-                      {log.nextDate && (
-                        <span className="bg-gray-50 px-2 py-0.5 rounded-full text-gray-600 font-semibold border border-gray-100 inline-flex items-center">
-                          <Calendar className="w-2.5 h-2.5 mr-0.5" />{log.nextDate}
+          {infoTab === 'log' && (
+            <div className="overflow-y-auto pr-1 -mr-1 space-y-4" style={{ maxHeight: '420px' }}>
+              {project.logs.map(log => (
+                <div key={log.id} className={`flex gap-3 ${log.type === 'alert' ? 'bg-red-50/60 p-3 rounded-lg border border-red-100' : ''}`}>
+                  <div className="flex-shrink-0 mt-0.5">
+                    {log.type === 'alert'
+                      ? <AlertCircle className="w-5 h-5 text-red-600" />
+                      : <div className="w-7 h-7 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-purple-600" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-500 tabular-nums">{log.date}</p>
+                    <p className="text-sm text-gray-800 font-medium leading-relaxed mt-1 break-words">{log.content}</p>
+                    {log.nextAction && (
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        <span className="bg-purple-50 px-2.5 py-1 rounded-full text-purple-700 font-bold border border-purple-100 inline-flex items-center">
+                          <ChevronRight className="w-3 h-3 mr-1" />{log.nextAction}
                         </span>
-                      )}
-                    </div>
-                  )}
+                        {log.nextDate && (
+                          <span className="bg-gray-50 px-2.5 py-1 rounded-full text-gray-600 font-semibold border border-gray-100 inline-flex items-center">
+                            <Calendar className="w-3 h-3 mr-1" />{log.nextDate}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-            {project.logs.length === 0 && (
-              <p className="text-xs text-gray-400 text-center py-8 font-medium">活動ログがありません</p>
-            )}
-          </div>
-        </Card>
-      </div>
+              ))}
+              {project.logs.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-10 font-medium">活動ログがありません</p>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* フェーズ進捗 */}
       <Card className="p-6">
@@ -2099,12 +2091,25 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">案件ランク</label>
-                  <select className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none appearance-none cursor-pointer"
-                    value={editInfo.rank || 'B'} onChange={e => setEditInfo({ ...editInfo, rank: e.target.value })}>
-                    <option value="A">A ランク</option>
-                    <option value="B">B ランク</option>
-                    <option value="C">C ランク</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { v: 'A', label: 'A ランク', active: 'bg-emerald-600 text-white border-emerald-600 shadow', idle: 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' },
+                      { v: 'B', label: 'B ランク', active: 'bg-amber-500 text-white border-amber-500 shadow',   idle: 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50' },
+                      { v: 'C', label: 'C ランク', active: 'bg-gray-500 text-white border-gray-500 shadow',     idle: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' },
+                    ].map(r => {
+                      const selected = (editInfo.rank || 'B') === r.v;
+                      return (
+                        <button
+                          key={r.v}
+                          type="button"
+                          onClick={() => setEditInfo({ ...editInfo, rank: r.v })}
+                          className={`px-3 py-2.5 rounded-xl text-sm font-extrabold border-2 transition-all ${selected ? r.active : r.idle}`}
+                        >
+                          {r.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">セットアップ担当者</label>
@@ -3076,6 +3081,7 @@ export default function App() {
 
   const canViewKpi = KPI_ALLOWED_ROLES.includes(currentRole);
   const canManageStaff = STAFF_ADMIN_ROLES.includes(currentRole);
+  const canSeeKaientaiQuest = KAIENTAI_QUEST_ROLES.includes(currentRole);
   // ロール切替時にアクセス権がないタブはダッシュボードに戻す
   React.useEffect(() => {
     if (!canViewKpi && currentTab === 'kpi') setCurrentTab('dashboard');
@@ -3130,7 +3136,7 @@ export default function App() {
               onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
               className="text-base font-bold text-gray-900 mr-6 hover:text-purple-700 transition-colors focus:outline-none"
             >
-              CareMax CRM
+              CM Force
             </button>
             {!selectedProject && (
               <>
@@ -3157,6 +3163,18 @@ export default function App() {
                     <Users className="w-4 h-4 mr-1.5" />
                     担当者管理
                   </button>
+                )}
+                {canSeeKaientaiQuest && (
+                  <a
+                    href={KAIENTAI_QUEST_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center text-gray-600 hover:bg-gray-100"
+                  >
+                    <Award className="w-4 h-4 mr-1.5 text-orange-500" />
+                    介援隊クエスト
+                    <ExternalLink className="w-3 h-3 ml-1.5 text-gray-400" />
+                  </a>
                 )}
               </>
             )}
@@ -3190,6 +3208,7 @@ export default function App() {
             projects={projects}
             onSelectProject={setSelectedProjectId}
             onAddProject={handleAddProject}
+            canViewProfit={canViewKpi}
           />
         )}
       </div>
