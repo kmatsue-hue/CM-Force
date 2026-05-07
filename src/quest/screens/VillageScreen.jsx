@@ -7,6 +7,7 @@ import {
 import {
   VILLAGE_MILESTONES,
   MAX_VILLAGE_PROFIT_TARGET,
+  ADVANCED_VILLAGE_DEVELOPMENTS,
 } from '../data/villageMilestones.js';
 import { formatG } from '../utils/format.js';
 import {
