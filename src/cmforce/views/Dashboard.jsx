@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertCircle,
   Calendar,
@@ -23,18 +24,43 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const filterMenuRef = React.useRef(null);
+  const filterButtonRef = React.useRef(null);
+  // ポップアップは Portal で body に出すため、ボタンの座標を保持して fixed 配置する
+  const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, right: 0 });
   const [filterConfig, setFilterConfig] = useState({ patterns: [], statuses: [], pics: [] });
 
-  // 絞り込みポップの外側クリックで閉じる
+  // ボタンの位置を計算してポップアップを開く
+  const openFilterMenu = () => {
+    if (filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setFilterMenuPos({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setIsFilterMenuOpen((prev) => !prev);
+  };
+
+  // 絞り込みポップの外側クリック・スクロール・リサイズで閉じる
   useEffect(() => {
     if (!isFilterMenuOpen) return;
     const handleClickOutside = (e) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target)) {
+      if (
+        filterMenuRef.current && !filterMenuRef.current.contains(e.target) &&
+        filterButtonRef.current && !filterButtonRef.current.contains(e.target)
+      ) {
         setIsFilterMenuOpen(false);
       }
     };
+    const handleReposition = () => setIsFilterMenuOpen(false);
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
   }, [isFilterMenuOpen]);
   const [lostInfoModal, setLostInfoModal] = useState(null); // 表示中の失注情報案件
   const [newProject, setNewProject] = useState({
@@ -173,9 +199,10 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <div className="relative" ref={filterMenuRef}>
+                <div>
                   <button
-                    onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                    ref={filterButtonRef}
+                    onClick={openFilterMenu}
                     className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors flex items-center shadow-sm"
                   >
                     <Filter className="w-4 h-4 mr-2 text-gray-500" />
@@ -186,8 +213,12 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                       </span>
                     )}
                   </button>
-                  {isFilterMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 max-h-[70vh] overflow-y-auto">
+                  {isFilterMenuOpen && createPortal(
+                    <div
+                      ref={filterMenuRef}
+                      style={{ position: 'fixed', top: filterMenuPos.top, right: filterMenuPos.right, zIndex: 200 }}
+                      className="w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-2 max-h-[70vh] overflow-y-auto"
+                    >
                       <div className="px-4 pb-2 mb-2 border-b border-gray-50 flex justify-between items-center sticky top-0 bg-white z-10 pt-1">
                         <span className="text-xs font-bold text-gray-400">絞り込み条件</span>
                         <button onClick={clearFilters} className="text-xs text-purple-600 hover:underline">クリア</button>
@@ -240,7 +271,8 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                           </label>
                         ))}
                       </div>
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
                 <button
