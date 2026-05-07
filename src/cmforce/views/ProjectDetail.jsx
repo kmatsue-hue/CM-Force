@@ -1,0 +1,751 @@
+import React, { useState, useEffect } from 'react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  BarChart3,
+  Building,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  Edit,
+  FileText,
+  MessageSquare,
+  X,
+} from 'lucide-react';
+import {
+  PHASES,
+  BRANCH_PHASE,
+  MERGE_PHASE,
+  KAIENTAI_SUB,
+  MARGIN_BRANCH_PHASE,
+  MARGIN_MERGE_PHASE,
+  isBranchablePattern,
+  isMarginBranchablePattern,
+  getMarginSteps,
+} from '../data/phases.js';
+import { formatJPYShort } from '../utils/format.js';
+import Card from '../ui/Card.jsx';
+import Badge from '../ui/Badge.jsx';
+import RankBadge from '../ui/RankBadge.jsx';
+import ArrowDiagram from '../ui/ArrowDiagram.jsx';
+import PhaseDetailPanel from '../ui/PhaseDetailPanel.jsx';
+
+// --- 案件詳細 ---
+const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
+  const [selectedPhase, setSelectedPhase] = useState(project.status);
+  const [infoTab, setInfoTab] = useState('endUser'); // 'endUser' | 'financial' | 'project' | 'log'
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [editInfo, setEditInfo] = useState({ ...project });
+  const [newLog, setNewLog] = useState({ content: '', nextAction: '', nextDate: '' });
+  const [isAddingLog, setIsAddingLog] = useState(false);
+  const [showLostConfirm, setShowLostConfirm] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [lostForm, setLostForm] = useState({ reason: '', competitor: '' });
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [showMarginBranchModal, setShowMarginBranchModal] = useState(false);
+  const isLost = project.isLost || false;
+
+  const kaientaiFlow = project.kaientaiFlow || { active: false, sub: 0 };
+  const marginFlow   = project.marginFlow   || { active: false, sub: 0 };
+  const marginSteps  = getMarginSteps(project.salesPattern);
+  // 表示・操作上の "現在フェーズ"
+  const effectivePhase = kaientaiFlow.active
+    ? KAIENTAI_SUB[kaientaiFlow.sub]
+    : (marginFlow.active ? marginSteps[marginFlow.sub] : project.status);
+  // 次に進むフェーズのラベル
+  const computeNextPhaseLabel = () => {
+    if (kaientaiFlow.active) {
+      return kaientaiFlow.sub < KAIENTAI_SUB.length - 1 ? KAIENTAI_SUB[kaientaiFlow.sub + 1] : MERGE_PHASE;
+    }
+    if (marginFlow.active) {
+      return marginFlow.sub < marginSteps.length - 1 ? marginSteps[marginFlow.sub + 1] : MARGIN_MERGE_PHASE;
+    }
+    const idx = PHASES.indexOf(project.status);
+    if (idx < 0 || idx >= PHASES.length - 1) return null;
+    return PHASES[idx + 1];
+  };
+  const nextPhaseLabel = computeNextPhaseLabel();
+
+  React.useEffect(() => {
+    setSelectedPhase(effectivePhase);
+    setEditInfo({ ...project });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
+
+  const handleUpdatePhaseData = (phaseName, newPhaseData) => {
+    onUpdateProject({
+      ...project,
+      phaseDetails: { ...project.phaseDetails, [phaseName]: newPhaseData },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const handleAdvancePhase = () => {
+    // マージン支払サブフロー中
+    if (marginFlow.active) {
+      if (marginFlow.sub < marginSteps.length - 1) {
+        onUpdateProject({
+          ...project,
+          marginFlow: { active: true, sub: marginFlow.sub + 1 },
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        // サブフロー完了 → 「一次保守」に合流
+        onUpdateProject({
+          ...project,
+          status: MARGIN_MERGE_PHASE,
+          marginFlow: { active: false, sub: 0, completed: true },
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+
+    // 「施工・納品」かつ全パターン → マージン分岐選択モーダル
+    if (project.status === MARGIN_BRANCH_PHASE && isMarginBranchablePattern(project.salesPattern) && !marginFlow.completed) {
+      setShowMarginBranchModal(true);
+      return;
+    }
+
+    // 介援隊サブフロー中
+    if (kaientaiFlow.active) {
+      if (kaientaiFlow.sub < KAIENTAI_SUB.length - 1) {
+        onUpdateProject({
+          ...project,
+          kaientaiFlow: { active: true, sub: kaientaiFlow.sub + 1 },
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        // サブフロー完了 → 「施工・納品」に合流
+        onUpdateProject({
+          ...project,
+          status: MERGE_PHASE,
+          kaientaiFlow: { active: false, sub: 0, completed: true },
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+
+    // 「提案書／見積書提出」かつパターン①/② → 分岐選択モーダル
+    if (project.status === BRANCH_PHASE && isBranchablePattern(project.salesPattern)) {
+      setShowBranchModal(true);
+      return;
+    }
+
+    // 通常進行
+    const currentIndex = PHASES.indexOf(project.status);
+    if (currentIndex < PHASES.length - 1) {
+      const nextPhase = PHASES[currentIndex + 1];
+      onUpdateProject({ ...project, status: nextPhase, updatedAt: new Date().toISOString() });
+    }
+  };
+
+  const handleSelectMarginBranch = (branch) => {
+    setShowMarginBranchModal(false);
+    if (branch === 'normal') {
+      // 通常 → 一次保守
+      onUpdateProject({ ...project, status: MARGIN_MERGE_PHASE, updatedAt: new Date().toISOString() });
+    } else if (branch === 'margin') {
+      onUpdateProject({
+        ...project,
+        marginFlow: { active: true, sub: 0 },
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  };
+
+  const handleSelectBranch = (branch) => {
+    setShowBranchModal(false);
+    if (branch === 'setup') {
+      // セットアップ → 通常通り「販売契約締結」へ
+      onUpdateProject({ ...project, status: '販売契約締結', updatedAt: new Date().toISOString() });
+    } else if (branch === 'kaientai') {
+      // 介援隊サブフロー開始（statusは BRANCH_PHASE のままサブフラグで管理）
+      onUpdateProject({
+        ...project,
+        kaientaiFlow: { active: true, sub: 0 },
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  };
+
+  const handleSaveInfo = () => {
+    onUpdateProject({ ...editInfo, updatedAt: new Date().toISOString() });
+    setIsEditingInfo(false);
+  };
+
+  const handleAddLog = () => {
+    if (!newLog.content.trim()) return;
+    const logEntry = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      type: 'activity',
+      content: newLog.content,
+      nextAction: newLog.nextAction,
+      nextDate: newLog.nextDate
+    };
+    onUpdateProject({
+      ...project,
+      logs: [logEntry, ...project.logs],
+      updatedAt: new Date().toISOString()
+    });
+    setNewLog({ content: '', nextAction: '', nextDate: '' });
+    setIsAddingLog(false);
+  };
+
+  const handleMarkAsLost = () => {
+    onUpdateProject({
+      ...project,
+      isLost: true,
+      lostInfo: {
+        reason: lostForm.reason,
+        competitor: lostForm.competitor,
+        date: new Date().toISOString().split('T')[0]
+      },
+      updatedAt: new Date().toISOString()
+    });
+    setShowLostConfirm(false);
+    setLostForm({ reason: '', competitor: '' });
+  };
+
+  const handleRestore = () => {
+    onUpdateProject({ ...project, isLost: false, updatedAt: new Date().toISOString() });
+    setShowRestoreConfirm(false);
+  };
+
+  const patternColor = project.salesPattern?.includes('パターン1') ? 'sky' :
+    project.salesPattern?.includes('パターン2') ? 'yellow' :
+    project.salesPattern?.includes('パターン3') ? 'green' : 'gray';
+
+  return (
+    <div className="space-y-8">
+      {/* ヘッダー */}
+      <div>
+        <button
+          onClick={onBack}
+          className="flex items-center text-sm text-gray-500 hover:text-purple-600 transition-colors mb-4 font-semibold"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1.5" /> Dashboard に戻る
+        </button>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <Badge color={patternColor}>{project.salesPattern}</Badge>
+              {isLost && <Badge color="red">LOST</Badge>}
+              <span className="text-xs font-mono text-gray-400">{project.id}</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project.name}</h1>
+            {project.summary && <p className="text-sm text-gray-500 mt-1.5">{project.summary}</p>}
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button
+              onClick={() => { setEditInfo({ ...project }); setIsEditingInfo(true); }}
+              className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm flex items-center"
+            >
+              <Edit className="w-4 h-4 mr-1.5" /> 編集
+            </button>
+            {isLost ? (
+              <button
+                onClick={() => setShowRestoreConfirm(true)}
+                className="px-4 py-2 text-sm font-bold text-purple-600 bg-purple-50 border border-purple-100 rounded-full hover:bg-purple-100 shadow-sm"
+              >
+                案件を復活させる
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowLostConfirm(true)}
+                className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 shadow-sm"
+              >
+                失注として記録
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 情報タブ（クリックで詳細展開） */}
+      <Card className="p-0 overflow-hidden">
+        {/* タブヘッダー */}
+        <div className="flex border-b border-gray-100 bg-gray-50/50">
+          {[
+            { key: 'endUser',   label: 'エンドユーザー', icon: Building,       color: 'text-purple-600 border-purple-500' },
+            { key: 'financial', label: '財務情報',       icon: BarChart3,      color: 'text-sky-600 border-sky-500' },
+            { key: 'project',   label: '案件情報',       icon: FileText,       color: 'text-emerald-600 border-emerald-500' },
+            { key: 'log',       label: '活動ログ',       icon: MessageSquare,  color: 'text-orange-600 border-orange-500', badge: project.logs.length },
+          ].map(tab => {
+            const TabIcon = tab.icon;
+            const active = infoTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setInfoTab(tab.key)}
+                className={`flex-1 px-4 py-3.5 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
+                  active
+                    ? `bg-white ${tab.color}`
+                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-white/60'
+                }`}
+              >
+                <TabIcon className="w-4 h-4" />
+                {tab.label}
+                {tab.badge != null && tab.badge > 0 && (
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${active ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{tab.badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* タブ内容 */}
+        <div className="p-5">
+          {infoTab === 'endUser' && (
+            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+              {[
+                ['企業・施設名', project.endUser.companyName, true],
+                ['担当部署', project.endUser.department],
+                ['連絡先', project.endUser.contact],
+                ['販売店', project.endUser.retailerName],
+              ].map(([label, value, bold]) => (
+                <div key={label} className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                  <dt className="text-xs text-gray-400 font-semibold">{label}</dt>
+                  <dd className={`text-sm leading-snug ${bold ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{value || <span className="text-gray-300 font-medium">—</span>}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
+          {infoTab === 'financial' && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">想定全体売上</p>
+                <p className="text-3xl font-extrabold text-gray-900 tabular-nums leading-tight mt-1">{formatJPYShort(project.financial.expectedRevenue || 0)}</p>
+              </div>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                {project.financial.wholesalePriceSetup && (
+                  <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                    <dt className="text-xs text-gray-400 font-semibold">卸値</dt>
+                    <dd className="text-sm font-semibold text-gray-700 tabular-nums">{formatJPYShort(project.financial.wholesalePriceSetup)}</dd>
+                  </div>
+                )}
+                {project.financial.referralFeeRate && (
+                  <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                    <dt className="text-xs text-gray-400 font-semibold">紹介料</dt>
+                    <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.financial.referralFeeRate}% / {formatJPYShort(project.financial.referralFeeAmount || 0)}</dd>
+                  </div>
+                )}
+                <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
+                  <dt className="text-xs text-gray-400 font-semibold">案件ランク</dt>
+                  <dd><RankBadge rank={project.rank} /></dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          {infoTab === 'project' && (
+            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+              <div className="grid grid-cols-[100px_1fr] gap-2">
+                <dt className="text-xs text-gray-400 font-semibold pt-0.5">担当者</dt>
+                <dd className="text-sm">
+                  <span className="font-bold text-gray-900">{project.picSetup || <span className="text-gray-300 font-medium">—</span>}</span>
+                  {project.picSetupContact && (
+                    <span className="block mt-1 text-xs font-semibold text-purple-700">
+                      <MessageSquare className="w-3 h-3 inline mr-1" />{project.picSetupContact}
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                <dt className="text-xs text-gray-400 font-semibold">開始日</dt>
+                <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.startDate || <span className="text-gray-300 font-medium">—</span>}</dd>
+              </div>
+              <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                <dt className="text-xs text-gray-400 font-semibold">クローズ予定</dt>
+                <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.expectedCloseDate || <span className="text-gray-300 font-medium">—</span>}</dd>
+              </div>
+              {project.endUser.needsAndIssues && (
+                <div className="grid grid-cols-[100px_1fr] gap-2 md:col-span-2">
+                  <dt className="text-xs text-gray-400 font-semibold pt-0.5">ニーズ・課題</dt>
+                  <dd className="text-sm font-semibold text-gray-700 leading-relaxed">{project.endUser.needsAndIssues}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          {infoTab === 'log' && (
+            <div className="overflow-y-auto pr-1 -mr-1 space-y-4" style={{ maxHeight: '420px' }}>
+              {project.logs.map(log => (
+                <div key={log.id} className={`flex gap-3 ${log.type === 'alert' ? 'bg-red-50/60 p-3 rounded-lg border border-red-100' : ''}`}>
+                  <div className="flex-shrink-0 mt-0.5">
+                    {log.type === 'alert'
+                      ? <AlertCircle className="w-5 h-5 text-red-600" />
+                      : <div className="w-7 h-7 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-purple-600" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-500 tabular-nums">{log.date}</p>
+                    <p className="text-sm text-gray-800 font-medium leading-relaxed mt-1 break-words">{log.content}</p>
+                    {log.nextAction && (
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        <span className="bg-purple-50 px-2.5 py-1 rounded-full text-purple-700 font-bold border border-purple-100 inline-flex items-center">
+                          <ChevronRight className="w-3 h-3 mr-1" />{log.nextAction}
+                        </span>
+                        {log.nextDate && (
+                          <span className="bg-gray-50 px-2.5 py-1 rounded-full text-gray-600 font-semibold border border-gray-100 inline-flex items-center">
+                            <Calendar className="w-3 h-3 mr-1" />{log.nextDate}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {project.logs.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-10 font-medium">活動ログがありません</p>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* フェーズ進捗 */}
+      <Card className="p-6">
+        <h3 className="text-base font-bold text-gray-900 mb-2">フェーズ進捗</h3>
+        <ArrowDiagram
+          currentPhase={project.status}
+          selectedPhase={selectedPhase}
+          onSelectPhase={setSelectedPhase}
+          phaseDetails={project.phaseDetails}
+          kaientaiFlow={kaientaiFlow}
+          marginFlow={marginFlow}
+          marginSteps={marginSteps}
+          salesPattern={project.salesPattern}
+        />
+        <PhaseDetailPanel
+          phase={selectedPhase}
+          data={project.phaseDetails?.[selectedPhase]}
+          isLost={isLost}
+          onUpdate={handleUpdatePhaseData}
+          currentProjectPhase={effectivePhase}
+          onAdvancePhase={handleAdvancePhase}
+          nextPhaseLabel={nextPhaseLabel}
+          isAtBranchPoint={
+            (!kaientaiFlow.active && project.status === BRANCH_PHASE && isBranchablePattern(project.salesPattern)) ||
+            (!marginFlow.active && project.status === MARGIN_BRANCH_PHASE && isMarginBranchablePattern(project.salesPattern) && !marginFlow.completed)
+          }
+          canStartKaientaiHere={
+            selectedPhase === BRANCH_PHASE
+            && isBranchablePattern(project.salesPattern)
+            && !kaientaiFlow.active
+            && !kaientaiFlow.completed
+            && PHASES.indexOf(project.status) > PHASES.indexOf(BRANCH_PHASE)
+            && PHASES.indexOf(project.status) < PHASES.indexOf(MERGE_PHASE)
+          }
+          onStartKaientai={() => onUpdateProject({
+            ...project,
+            kaientaiFlow: { active: true, sub: 0 },
+            updatedAt: new Date().toISOString(),
+          })}
+          canStartMarginHere={
+            selectedPhase === MARGIN_BRANCH_PHASE
+            && isMarginBranchablePattern(project.salesPattern)
+            && !marginFlow.active
+            && !marginFlow.completed
+            && PHASES.indexOf(project.status) >= PHASES.indexOf(MARGIN_BRANCH_PHASE)
+          }
+          onStartMargin={() => onUpdateProject({
+            ...project,
+            marginFlow: { active: true, sub: 0 },
+            updatedAt: new Date().toISOString(),
+          })}
+          onAddProjectLog={(logData) => {
+            const logEntry = {
+              id: Date.now(),
+              date: new Date().toISOString().split('T')[0],
+              type: 'activity',
+              content: logData.content,
+              nextAction: logData.nextAction || '',
+              nextDate: logData.nextDate || '',
+            };
+            onUpdateProject({
+              ...project,
+              logs: [logEntry, ...project.logs],
+              updatedAt: new Date().toISOString(),
+            });
+          }}
+        />
+      </Card>
+
+
+      {/* 編集モーダル */}
+      {isEditingInfo && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">案件情報の編集</h3>
+              <button onClick={() => setIsEditingInfo(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">案件名</label>
+                <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  value={editInfo.name} onChange={e => setEditInfo({ ...editInfo, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">概要</label>
+                <textarea className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none h-20"
+                  value={editInfo.summary || ''} onChange={e => setEditInfo({ ...editInfo, summary: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">案件ランク</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { v: 'A', label: 'A ランク', active: 'bg-emerald-600 text-white border-emerald-600 shadow', idle: 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' },
+                      { v: 'B', label: 'B ランク', active: 'bg-amber-500 text-white border-amber-500 shadow',   idle: 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50' },
+                      { v: 'C', label: 'C ランク', active: 'bg-gray-500 text-white border-gray-500 shadow',     idle: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' },
+                    ].map(r => {
+                      const selected = (editInfo.rank || 'B') === r.v;
+                      return (
+                        <button
+                          key={r.v}
+                          type="button"
+                          onClick={() => setEditInfo({ ...editInfo, rank: r.v })}
+                          className={`px-3 py-2.5 rounded-xl text-sm font-extrabold border-2 transition-all ${selected ? r.active : r.idle}`}
+                        >
+                          {r.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">セットアップ担当者</label>
+                  <input type="text" placeholder="例：山田 太郎" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    value={editInfo.picSetup || ''} onChange={e => setEditInfo({ ...editInfo, picSetup: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">セットアップ担当者 連絡先 <span className="ml-1 text-xs font-normal text-gray-400">（電話番号・メールなど）</span></label>
+                <input type="text" placeholder="例：090-1234-5678 / yamada@example.com" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  value={editInfo.picSetupContact || ''} onChange={e => setEditInfo({ ...editInfo, picSetupContact: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">クローズ予定日</label>
+                  <input type="date" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    value={editInfo.expectedCloseDate || ''} onChange={e => setEditInfo({ ...editInfo, expectedCloseDate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">想定全体売上</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">¥</span>
+                    <input type="number" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      value={editInfo.financial?.expectedRevenue || 0}
+                      onChange={e => setEditInfo({ ...editInfo, financial: { ...editInfo.financial, expectedRevenue: Number(e.target.value) } })} />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-gray-100 pt-4">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">エンドユーザー情報</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">企業・施設名</label>
+                    <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      value={editInfo.endUser?.companyName || ''}
+                      onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, companyName: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">担当部署</label>
+                    <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      value={editInfo.endUser?.department || ''}
+                      onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, department: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">連絡先</label>
+                    <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      value={editInfo.endUser?.contact || ''}
+                      onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, contact: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">販売店</label>
+                    <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      value={editInfo.endUser?.retailerName || ''}
+                      onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, retailerName: e.target.value } })} />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">ニーズ・課題</label>
+                  <textarea className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none h-20"
+                    value={editInfo.endUser?.needsAndIssues || ''}
+                    onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, needsAndIssues: e.target.value } })} />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 border-t border-gray-100 pt-4 mt-6">
+              <button onClick={() => setIsEditingInfo(false)} className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-full">キャンセル</button>
+              <button onClick={handleSaveInfo} className="px-6 py-2.5 text-sm font-bold bg-purple-600 text-white hover:bg-purple-700 rounded-full shadow-md">保存する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 失注確認 */}
+      {showLostConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mr-3">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <h4 className="text-lg font-bold text-gray-900">失注として記録</h4>
+              </div>
+              <button onClick={() => { setShowLostConfirm(false); setLostForm({ reason: '', competitor: '' }); }} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-5 ml-[52px]">
+              案件は一覧に残りますが、KPI計算から除外されます。
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  失注理由
+                </label>
+                <textarea
+                  className="w-full h-24 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-300 focus:bg-white focus:outline-none resize-none transition-all"
+                  placeholder="例：価格面での折り合いがつかなかった、競合製品に決定した 等"
+                  value={lostForm.reason}
+                  onChange={e => setLostForm({ ...lostForm, reason: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  競合情報
+                  <span className="ml-2 text-xs font-normal text-gray-400">（競合製品・企業名など）</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 font-semibold focus:ring-2 focus:ring-red-300 focus:border-red-300 focus:bg-white focus:outline-none transition-all"
+                  placeholder="例：〇〇社製品、△△システム 等"
+                  value={lostForm.competitor}
+                  onChange={e => setLostForm({ ...lostForm, competitor: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 border-t border-gray-100 pt-4 mt-5">
+              <button onClick={() => { setShowLostConfirm(false); setLostForm({ reason: '', competitor: '' }); }} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
+              <button onClick={handleMarkAsLost} className="px-5 py-2 rounded-full text-sm font-bold bg-red-600 text-white hover:bg-red-700 shadow-sm">失注として記録する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* マージン分岐選択モーダル（施工・納品 → 次フェーズ） */}
+      {showMarginBranchModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-lg animate-in zoom-in-95 duration-200">
+            <div className="flex items-center mb-2">
+              <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center mr-3">
+                <ChevronRight className="w-6 h-6 text-orange-600" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900">次フェーズの分岐選択</h4>
+            </div>
+            <p className="text-sm text-gray-500 mb-5 ml-[52px]">
+              「施工・納品」の次に進むルートを選択してください。
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => handleSelectMarginBranch('normal')}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50/40 transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-purple-600 bg-purple-50 border border-purple-200">通常</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900">そのまま「一次保守」へ</p>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">マージン処理を行わずに次フェーズへ進みます。</p>
+              </button>
+              <button
+                onClick={() => handleSelectMarginBranch('margin')}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/40 transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">マージン</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900">マージン支払サブフロー</p>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                  {marginSteps.length === 1
+                    ? '「マージン支払」をゴールとし、その後「一次保守」に合流します。'
+                    : '「マージン支払 → 販売店へ支払」を経由して「一次保守」に合流します。'}
+                </p>
+              </button>
+            </div>
+            <div className="flex justify-end mt-5 pt-4 border-t border-gray-100">
+              <button onClick={() => setShowMarginBranchModal(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 分岐選択モーダル（提案書／見積書提出 → 次フェーズ） */}
+      {showBranchModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-lg animate-in zoom-in-95 duration-200">
+            <div className="flex items-center mb-2">
+              <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center mr-3">
+                <ChevronRight className="w-6 h-6 text-purple-600" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900">次フェーズの分岐選択</h4>
+            </div>
+            <p className="text-sm text-gray-500 mb-5 ml-[52px]">
+              「提案書／見積書提出」の次に進むルートを選択してください。
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => handleSelectBranch('setup')}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50/40 transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">セットアップ</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900">通常フロー</p>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">そのまま「販売契約締結 → 施工・納品 → 一次保守」へ進みます。</p>
+              </button>
+              <button
+                onClick={() => handleSelectBranch('kaientai')}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50/40 transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-blue-600 bg-blue-50 border border-blue-200">介援隊</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900">サブフロー</p>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">「介援隊：見積書提出 → 介援隊：納品」を経由して「施工・納品」に合流します。</p>
+              </button>
+            </div>
+            <div className="flex justify-end mt-5 pt-4 border-t border-gray-100">
+              <button onClick={() => setShowBranchModal(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 復活確認 */}
+      {showRestoreConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-96">
+            <h4 className="text-lg font-bold text-gray-900 mb-4">案件を復活させる</h4>
+            <p className="text-sm text-gray-600 mb-6">この案件を進行中に戻しますか？</p>
+            <div className="flex justify-end space-x-3">
+              <button onClick={() => setShowRestoreConfirm(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
+              <button onClick={handleRestore} className="px-5 py-2 rounded-full text-sm font-bold bg-purple-600 text-white hover:bg-purple-700">復活させる</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+export default ProjectDetail;
