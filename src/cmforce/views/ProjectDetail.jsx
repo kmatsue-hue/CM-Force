@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
-  BarChart3,
   Building,
   Calendar,
   CheckCircle2,
@@ -33,7 +32,7 @@ import PhaseDetailPanel from '../ui/PhaseDetailPanel.jsx';
 // --- 案件詳細 ---
 const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
   const [selectedPhase, setSelectedPhase] = useState(project.status);
-  const [infoTab, setInfoTab] = useState('endUser'); // 'endUser' | 'financial' | 'project' | 'log'
+  const [infoTab, setInfoTab] = useState('endUser'); // 'endUser' | 'project' | 'log'
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editInfo, setEditInfo] = useState({ ...project });
   const [newLog, setNewLog] = useState({ content: '', nextAction: '', nextDate: '' });
@@ -331,10 +330,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
         {/* タブヘッダー */}
         <div className="flex border-b border-gray-100 bg-gray-50/50">
           {[
-            { key: 'endUser',   label: 'エンドユーザー', icon: Building,       color: 'text-purple-600 border-purple-500' },
-            { key: 'financial', label: '財務情報',       icon: BarChart3,      color: 'text-sky-600 border-sky-500' },
-            { key: 'project',   label: '案件情報',       icon: FileText,       color: 'text-emerald-600 border-emerald-500' },
-            { key: 'log',       label: '活動ログ',       icon: MessageSquare,  color: 'text-orange-600 border-orange-500', badge: project.logs.length },
+            { key: 'endUser', label: 'エンドユーザー情報', icon: Building,      color: 'text-purple-600 border-purple-500' },
+            { key: 'project', label: '案件情報',           icon: FileText,      color: 'text-emerald-600 border-emerald-500' },
+            { key: 'log',     label: '活動ログ',           icon: MessageSquare, color: 'text-orange-600 border-orange-500', badge: project.logs.length },
           ].map(tab => {
             const TabIcon = tab.icon;
             const active = infoTab === tab.key;
@@ -376,61 +374,59 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
             </dl>
           )}
 
-          {infoTab === 'financial' && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">想定全体売上</p>
-                <p className="text-3xl font-extrabold text-gray-900 tabular-nums leading-tight mt-1">{formatJPYShort(project.financial.expectedRevenue || 0)}</p>
+          {infoTab === 'project' && (
+            <div className="space-y-5">
+              {/* 想定全体売上（強調表示） */}
+              <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-4">
+                <p className="text-xs text-sky-700 font-bold uppercase tracking-wider">想定全体売上</p>
+                <p className="text-3xl font-extrabold text-gray-900 tabular-nums leading-tight mt-1">{formatJPYShort(project.financial?.expectedRevenue || 0)}</p>
               </div>
+
+              {/* 案件情報 + 財務情報 をフラットに */}
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                {project.financial.wholesalePriceSetup && (
+                <div className="grid grid-cols-[100px_1fr] gap-2">
+                  <dt className="text-xs text-gray-400 font-semibold pt-0.5">担当者</dt>
+                  <dd className="text-sm">
+                    <span className="font-bold text-gray-900">{project.picSetup || <span className="text-gray-300 font-medium">—</span>}</span>
+                    {project.picSetupContact && (
+                      <span className="block mt-1 text-xs font-semibold text-purple-700">
+                        <MessageSquare className="w-3 h-3 inline mr-1" />{project.picSetupContact}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
+                  <dt className="text-xs text-gray-400 font-semibold">案件ランク</dt>
+                  <dd><RankBadge rank={project.rank} /></dd>
+                </div>
+                <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                  <dt className="text-xs text-gray-400 font-semibold">開始日</dt>
+                  <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.startDate || <span className="text-gray-300 font-medium">—</span>}</dd>
+                </div>
+                <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                  <dt className="text-xs text-gray-400 font-semibold">クローズ予定</dt>
+                  <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.expectedCloseDate || <span className="text-gray-300 font-medium">—</span>}</dd>
+                </div>
+                {project.financial?.wholesalePriceSetup != null && (
                   <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
                     <dt className="text-xs text-gray-400 font-semibold">卸値</dt>
                     <dd className="text-sm font-semibold text-gray-700 tabular-nums">{formatJPYShort(project.financial.wholesalePriceSetup)}</dd>
                   </div>
                 )}
-                {project.financial.referralFeeRate && (
+                {project.financial?.referralFeeRate != null && (
                   <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
                     <dt className="text-xs text-gray-400 font-semibold">紹介料</dt>
                     <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.financial.referralFeeRate}% / {formatJPYShort(project.financial.referralFeeAmount || 0)}</dd>
                   </div>
                 )}
-                <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
-                  <dt className="text-xs text-gray-400 font-semibold">案件ランク</dt>
-                  <dd><RankBadge rank={project.rank} /></dd>
-                </div>
+                {project.endUser.needsAndIssues && (
+                  <div className="grid grid-cols-[100px_1fr] gap-2 md:col-span-2">
+                    <dt className="text-xs text-gray-400 font-semibold pt-0.5">ニーズ・課題</dt>
+                    <dd className="text-sm font-semibold text-gray-700 leading-relaxed">{project.endUser.needsAndIssues}</dd>
+                  </div>
+                )}
               </dl>
             </div>
-          )}
-
-          {infoTab === 'project' && (
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-              <div className="grid grid-cols-[100px_1fr] gap-2">
-                <dt className="text-xs text-gray-400 font-semibold pt-0.5">担当者</dt>
-                <dd className="text-sm">
-                  <span className="font-bold text-gray-900">{project.picSetup || <span className="text-gray-300 font-medium">—</span>}</span>
-                  {project.picSetupContact && (
-                    <span className="block mt-1 text-xs font-semibold text-purple-700">
-                      <MessageSquare className="w-3 h-3 inline mr-1" />{project.picSetupContact}
-                    </span>
-                  )}
-                </dd>
-              </div>
-              <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
-                <dt className="text-xs text-gray-400 font-semibold">開始日</dt>
-                <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.startDate || <span className="text-gray-300 font-medium">—</span>}</dd>
-              </div>
-              <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
-                <dt className="text-xs text-gray-400 font-semibold">クローズ予定</dt>
-                <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.expectedCloseDate || <span className="text-gray-300 font-medium">—</span>}</dd>
-              </div>
-              {project.endUser.needsAndIssues && (
-                <div className="grid grid-cols-[100px_1fr] gap-2 md:col-span-2">
-                  <dt className="text-xs text-gray-400 font-semibold pt-0.5">ニーズ・課題</dt>
-                  <dd className="text-sm font-semibold text-gray-700 leading-relaxed">{project.endUser.needsAndIssues}</dd>
-                </div>
-              )}
-            </dl>
           )}
 
           {infoTab === 'log' && (
