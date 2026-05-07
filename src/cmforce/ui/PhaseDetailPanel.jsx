@@ -3,6 +3,7 @@ import {
   Calendar,
   Check,
   CheckSquare,
+  ChevronLeft,
   ChevronRight,
   Edit,
   ExternalLink,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 import { PHASES } from '../data/phases.js';
 
-const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
+const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [notes, setNotes] = useState(data?.notes || '');
   const [tasks, setTasks] = useState(data?.tasks || []);
@@ -24,6 +25,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false);
   const [marginAmount, setMarginAmount] = useState(data?.marginAmount ?? '');
   const [marginScheduledDate, setMarginScheduledDate] = useState(data?.marginScheduledDate || '');
   const isMarginPaymentPhase = phase === 'マージン支払';
@@ -125,6 +127,24 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
             >
               マージン支払サブフローを開始
               <ChevronRight className="w-4 h-4 ml-1" />
+            </button>
+          )}
+          {isCurrentPhase && prevPhaseLabel && (
+            <button
+              onClick={() => {
+                if (isLost) return;
+                setShowRevertConfirm(true);
+              }}
+              disabled={isLost}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm flex items-center ${
+                isLost
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+              }`}
+              title={`「${prevPhaseLabel}」へ戻る`}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              前フェーズへ戻る
             </button>
           )}
           {isCurrentPhase && !isLastPhase && (
@@ -464,6 +484,38 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                 className="px-5 py-2 rounded-full text-sm font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm flex items-center"
               >
                 はい、進める
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 前フェーズへ戻る 確認ダイアログ */}
+      {showRevertConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-96 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center mb-4 text-amber-600">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center mr-3">
+                <ChevronLeft className="w-6 h-6" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900">フェーズを戻す</h4>
+            </div>
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              ステータスを一つ前のフェーズ「<span className="font-bold text-amber-700">{prevPhaseLabel || ''}</span>」へ戻してよろしいですか？<br />
+              <span className="text-xs text-gray-400">※ 各フェーズの入力内容（メモ・タスク・リンク）は保持されます。</span>
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowRevertConfirm(false)}
+                className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => { setShowRevertConfirm(false); onRevertPhase && onRevertPhase(); }}
+                className="px-5 py-2 rounded-full text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm flex items-center"
+              >
+                はい、戻す
               </button>
             </div>
           </div>

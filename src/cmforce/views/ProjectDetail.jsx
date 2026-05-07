@@ -66,6 +66,20 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
   };
   const nextPhaseLabel = computeNextPhaseLabel();
 
+  // 一つ前のフェーズのラベル
+  const computePrevPhaseLabel = () => {
+    if (marginFlow.active) {
+      return marginFlow.sub > 0 ? marginSteps[marginFlow.sub - 1] : MARGIN_BRANCH_PHASE;
+    }
+    if (kaientaiFlow.active) {
+      return kaientaiFlow.sub > 0 ? KAIENTAI_SUB[kaientaiFlow.sub - 1] : BRANCH_PHASE;
+    }
+    const idx = PHASES.indexOf(project.status);
+    if (idx <= 0) return null;
+    return PHASES[idx - 1];
+  };
+  const prevPhaseLabel = computePrevPhaseLabel();
+
   React.useEffect(() => {
     setSelectedPhase(effectivePhase);
     setEditInfo({ ...project });
@@ -138,6 +152,54 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
     if (currentIndex < PHASES.length - 1) {
       const nextPhase = PHASES[currentIndex + 1];
       onUpdateProject({ ...project, status: nextPhase, updatedAt: new Date().toISOString() });
+    }
+  };
+
+  const handleRevertPhase = () => {
+    // マージン支払サブフロー中
+    if (marginFlow.active) {
+      if (marginFlow.sub > 0) {
+        onUpdateProject({
+          ...project,
+          marginFlow: { active: true, sub: marginFlow.sub - 1 },
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        // サブフロー先頭から戻る → サブフロー離脱して MARGIN_BRANCH_PHASE (施工・納品) へ
+        onUpdateProject({
+          ...project,
+          status: MARGIN_BRANCH_PHASE,
+          marginFlow: { active: false, sub: 0 },
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+
+    // 介援隊サブフロー中
+    if (kaientaiFlow.active) {
+      if (kaientaiFlow.sub > 0) {
+        onUpdateProject({
+          ...project,
+          kaientaiFlow: { active: true, sub: kaientaiFlow.sub - 1 },
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        // サブフロー先頭から戻る → BRANCH_PHASE のままサブフローを離脱
+        onUpdateProject({
+          ...project,
+          kaientaiFlow: { active: false, sub: 0 },
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+
+    // 通常進行
+    const currentIndex = PHASES.indexOf(project.status);
+    if (currentIndex > 0) {
+      const prevPhase = PHASES[currentIndex - 1];
+      onUpdateProject({ ...project, status: prevPhase, updatedAt: new Date().toISOString() });
     }
   };
 
@@ -427,6 +489,8 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
           currentProjectPhase={effectivePhase}
           onAdvancePhase={handleAdvancePhase}
           nextPhaseLabel={nextPhaseLabel}
+          onRevertPhase={handleRevertPhase}
+          prevPhaseLabel={prevPhaseLabel}
           isAtBranchPoint={
             (!kaientaiFlow.active && project.status === BRANCH_PHASE && isBranchablePattern(project.salesPattern)) ||
             (!marginFlow.active && project.status === MARGIN_BRANCH_PHASE && isMarginBranchablePattern(project.salesPattern) && !marginFlow.completed)
