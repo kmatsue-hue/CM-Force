@@ -41,6 +41,8 @@ import Dashboard from './cmforce/views/Dashboard.jsx';
 import ProjectDetail from './cmforce/views/ProjectDetail.jsx';
 import KpiView from './cmforce/views/KpiView.jsx';
 import StaffView from './cmforce/views/StaffView.jsx';
+import LoginScreen from './cmforce/views/LoginScreen.jsx';
+import { AUTH_STORAGE_KEY } from './cmforce/data/auth.js';
 
 
 
@@ -51,8 +53,40 @@ export default function App() {
   const [projects, setProjects] = useState(mockProjects);
   const [staff, setStaff] = useState(initialStaff);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [currentRole, setCurrentRole] = useState(ROLES.KIKAKU);
+  // 認証状態は localStorage から復元
+  const [authedRole, setAuthedRole] = useState(() => {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return ROLE_LIST.includes(parsed?.role) ? parsed.role : null;
+    } catch {
+      return null;
+    }
+  });
+  const [currentRole, setCurrentRole] = useState(authedRole || ROLES.KIKAKU);
   const [currentTab, setCurrentTab] = useState(() => window.location.hash === '#quest' ? 'quest' : 'dashboard'); // 'dashboard' | 'kpi' | 'staff' | 'quest'
+
+  const handleLogin = (role) => {
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ role, at: Date.now() }));
+    } catch {
+      // ignore storage errors
+    }
+    setAuthedRole(role);
+    setCurrentRole(role);
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    setAuthedRole(null);
+    setSelectedProjectId(null);
+    setCurrentTab('dashboard');
+  };
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
 
   const canViewKpi = KPI_ALLOWED_ROLES.includes(currentRole);
@@ -110,6 +144,10 @@ export default function App() {
     setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
   };
 
+  if (!authedRole) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/80">
       {/* トップナビゲーション */}
@@ -160,15 +198,20 @@ export default function App() {
               </>
             )}
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-semibold text-gray-400">ロール</span>
-            <select
-              value={currentRole}
-              onChange={e => setCurrentRole(e.target.value)}
-              className="text-sm font-bold text-gray-700 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline text-xs font-semibold text-gray-400">ロール</span>
+            <span className="text-sm font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-3 py-1.5">
+              {currentRole}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-full px-3 py-1.5 transition-colors"
+              title="ログアウト"
             >
-              {ROLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">ログアウト</span>
+            </button>
           </div>
         </div>
       </div>
