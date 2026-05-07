@@ -43,6 +43,12 @@ import KpiView from './cmforce/views/KpiView.jsx';
 import StaffView from './cmforce/views/StaffView.jsx';
 import LoginScreen from './cmforce/views/LoginScreen.jsx';
 import { AUTH_STORAGE_KEY } from './cmforce/data/auth.js';
+import {
+  PROJECTS_STORAGE_KEY,
+  STAFF_STORAGE_KEY,
+  loadJson,
+  saveJson,
+} from './cmforce/data/storage.js';
 
 
 
@@ -50,8 +56,13 @@ import { AUTH_STORAGE_KEY } from './cmforce/data/auth.js';
 
 // --- メインアプリ ---
 export default function App() {
-  const [projects, setProjects] = useState(mockProjects);
-  const [staff, setStaff] = useState(initialStaff);
+  // 案件・担当者は localStorage から復元（初回は mock データ）
+  const [projects, setProjects] = useState(() => loadJson(PROJECTS_STORAGE_KEY, mockProjects));
+  const [staff, setStaff] = useState(() => loadJson(STAFF_STORAGE_KEY, initialStaff));
+
+  // 変更されたら自動保存
+  useEffect(() => { saveJson(PROJECTS_STORAGE_KEY, projects); }, [projects]);
+  useEffect(() => { saveJson(STAFF_STORAGE_KEY, staff); }, [staff]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   // 認証状態は localStorage から復元
   const [authedRole, setAuthedRole] = useState(() => {
