@@ -291,6 +291,7 @@ export default function App() {
             onSelectProject={setSelectedProjectId}
             onAddProject={handleAddProject}
             canViewProfit={canViewKpi}
+            canExportCsv={currentRole === ROLES.KIKAKU || currentRole === ROLES.SETUP}
           />
         )}
       </div>

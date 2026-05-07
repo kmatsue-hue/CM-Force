@@ -5,6 +5,7 @@ import {
   Calendar,
   Check,
   ChevronRight,
+  Download,
   Filter,
   Plus,
   Search,
@@ -13,13 +14,14 @@ import {
 } from 'lucide-react';
 import { PHASES } from '../data/phases.js';
 import { formatJPY, formatJPYShort } from '../utils/format.js';
+import { rowsToCsv, downloadCsv, todayStamp } from '../utils/csv.js';
 import Card from '../ui/Card.jsx';
 import RankBadge from '../ui/RankBadge.jsx';
 import RankPieChart from '../ui/RankPieChart.jsx';
 import MiniArrowDiagram from '../ui/MiniArrowDiagram.jsx';
 
 // --- ダッシュボード ---
-const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false }) => {
+const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -129,6 +131,64 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
   }, [projects, searchTerm, filterConfig]);
 
   const activeFilterCount = filterConfig.patterns.length + filterConfig.statuses.length + filterConfig.pics.length;
+
+  // 案件情報を CSV 出力（絞り込み・検索が反映された結果をそのまま出力）
+  const handleExportCsv = () => {
+    const header = [
+      '案件ID',
+      '案件名',
+      'ステータス',
+      '販売スキーム',
+      'ランク',
+      'セットアップ担当',
+      '開始日',
+      'クローズ予定日',
+      '想定全体売上(円)',
+      '卸値(円)',
+      '紹介料率(%)',
+      '紹介料(円)',
+      '直販価格(円)',
+      'エンドユーザー企業名',
+      '販売店',
+      '部署',
+      '連絡先',
+      '住所',
+      'ニーズ・課題',
+      '失注',
+      '失注理由',
+      '競合先',
+      '失注日',
+      '更新日',
+    ];
+    const rows = filteredProjects.map((p) => [
+      p.id,
+      p.name,
+      p.status,
+      p.salesPattern,
+      p.rank,
+      p.picSetup,
+      p.startDate,
+      p.expectedCloseDate,
+      p.financial?.expectedRevenue ?? '',
+      p.financial?.wholesalePriceSetup ?? '',
+      p.financial?.referralFeeRate ?? '',
+      p.financial?.referralFeeAmount ?? '',
+      p.financial?.directSalesPrice ?? '',
+      p.endUser?.companyName ?? '',
+      p.endUser?.retailerName ?? '',
+      p.endUser?.department ?? '',
+      p.endUser?.contact ?? '',
+      p.endUser?.address ?? '',
+      p.endUser?.needsAndIssues ?? '',
+      p.isLost ? '失注' : '',
+      p.lostInfo?.reason ?? '',
+      p.lostInfo?.competitor ?? '',
+      p.lostInfo?.date ?? '',
+      p.updatedAt,
+    ]);
+    const csv = rowsToCsv([header, ...rows]);
+    downloadCsv(`cm-force-projects-${todayStamp()}.csv`, csv);
+  };
 
   // パターン別売上計算
   const patternRevenue = useMemo(() => {
@@ -284,6 +344,17 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                     document.body
                   )}
                 </div>
+                {canExportCsv && (
+                  <button
+                    onClick={handleExportCsv}
+                    disabled={filteredProjects.length === 0}
+                    className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center shadow-sm"
+                    title="絞り込み結果を CSV ファイルとして書き出します"
+                  >
+                    <Download className="w-4 h-4 mr-2 text-gray-500" />
+                    CSV出力
+                  </button>
+                )}
                 <button
                   onClick={() => setIsModalOpen(true)}
                   className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-bold flex items-center shadow-md hover:bg-purple-700 transition-colors"
