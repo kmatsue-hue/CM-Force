@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertCircle, Check } from 'lucide-react';
 import {
   PHASES,
   BRANCH_PHASE,
