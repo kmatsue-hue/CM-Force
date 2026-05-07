@@ -26,17 +26,24 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
   const filterMenuRef = React.useRef(null);
   const filterButtonRef = React.useRef(null);
   // ポップアップは Portal で body に出すため、ボタンの座標を保持して fixed 配置する
-  const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, right: 0 });
+  const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, right: 0, width: 720 });
   const [filterConfig, setFilterConfig] = useState({ patterns: [], statuses: [], pics: [] });
 
   // ボタンの位置を計算してポップアップを開く
+  // 横長メニューが画面外に出ないよう、画面幅に応じて幅とオフセットをクランプ
+  const FILTER_MENU_WIDTH = 720;
+  const FILTER_MENU_MARGIN = 8;
   const openFilterMenu = () => {
     if (filterButtonRef.current) {
       const rect = filterButtonRef.current.getBoundingClientRect();
-      setFilterMenuPos({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
-      });
+      const availableWidth = window.innerWidth - FILTER_MENU_MARGIN * 2;
+      const menuWidth = Math.min(FILTER_MENU_WIDTH, availableWidth);
+      // ボタン右端を基点に右寄せ。左にはみ出す場合は左端から margin だけ離して固定
+      let right = window.innerWidth - rect.right;
+      if (rect.right - menuWidth < FILTER_MENU_MARGIN) {
+        right = window.innerWidth - menuWidth - FILTER_MENU_MARGIN;
+      }
+      setFilterMenuPos({ top: rect.bottom + 8, right, width: menuWidth });
     }
     setIsFilterMenuOpen((prev) => !prev);
   };
@@ -216,60 +223,62 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                   {isFilterMenuOpen && createPortal(
                     <div
                       ref={filterMenuRef}
-                      style={{ position: 'fixed', top: filterMenuPos.top, right: filterMenuPos.right, zIndex: 200 }}
-                      className="w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-2 max-h-[70vh] overflow-y-auto"
+                      style={{ position: 'fixed', top: filterMenuPos.top, right: filterMenuPos.right, width: filterMenuPos.width, maxWidth: 'calc(100vw - 16px)', zIndex: 200 }}
+                      className="bg-white rounded-xl shadow-xl border border-gray-100 max-h-[80vh] overflow-y-auto"
                     >
-                      <div className="px-4 pb-2 mb-2 border-b border-gray-50 flex justify-between items-center sticky top-0 bg-white z-10 pt-1">
-                        <span className="text-xs font-bold text-gray-400">絞り込み条件</span>
-                        <button onClick={clearFilters} className="text-xs text-purple-600 hover:underline">クリア</button>
+                      <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                        <span className="text-sm font-bold text-gray-700">絞り込み条件</span>
+                        <button onClick={clearFilters} className="text-xs text-purple-600 hover:underline font-semibold">クリア</button>
                       </div>
-                      <div className="px-4 py-2">
-                        <span className="text-xs font-bold text-gray-800 mb-2 block">販売スキーム</span>
-                        {['パターン1（完全卸し）', 'パターン2（分離）', 'パターン3（完全紹介）'].map(pattern => (
-                          <label
-                            key={pattern}
-                            onClick={() => toggleFilter('patterns', pattern)}
-                            className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
-                          >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${filterConfig.patterns.includes(pattern) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
-                              {filterConfig.patterns.includes(pattern) && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <span className="text-sm text-gray-600 group-hover:text-gray-900">{pattern}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <div className="px-4 py-2 border-t border-gray-50">
-                        <span className="text-xs font-bold text-gray-800 mb-2 block">ステータス</span>
-                        {PHASES.map(phase => (
-                          <label
-                            key={phase}
-                            onClick={() => toggleFilter('statuses', phase)}
-                            className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
-                          >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${filterConfig.statuses.includes(phase) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
-                              {filterConfig.statuses.includes(phase) && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <span className="text-sm text-gray-600 group-hover:text-gray-900">{phase}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <div className="px-4 py-2 border-t border-gray-50">
-                        <span className="text-xs font-bold text-gray-800 mb-2 block">セットアップ担当者</span>
-                        {allPics.length === 0 && (
-                          <span className="text-xs text-gray-400 italic">担当者未設定の案件のみです</span>
-                        )}
-                        {allPics.map(pic => (
-                          <label
-                            key={pic}
-                            onClick={() => toggleFilter('pics', pic)}
-                            className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
-                          >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${filterConfig.pics.includes(pic) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
-                              {filterConfig.pics.includes(pic) && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <span className="text-sm text-gray-600 group-hover:text-gray-900">{pic}</span>
-                          </label>
-                        ))}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 divide-x divide-gray-100">
+                        <div className="px-4 py-3">
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">販売スキーム</span>
+                          {['パターン1（完全卸し）', 'パターン2（分離）', 'パターン3（完全紹介）'].map(pattern => (
+                            <label
+                              key={pattern}
+                              onClick={() => toggleFilter('patterns', pattern)}
+                              className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
+                            >
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${filterConfig.patterns.includes(pattern) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {filterConfig.patterns.includes(pattern) && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="text-sm text-gray-600 group-hover:text-gray-900">{pattern}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="px-4 py-3">
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">ステータス</span>
+                          {PHASES.map(phase => (
+                            <label
+                              key={phase}
+                              onClick={() => toggleFilter('statuses', phase)}
+                              className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
+                            >
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${filterConfig.statuses.includes(phase) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {filterConfig.statuses.includes(phase) && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="text-sm text-gray-600 group-hover:text-gray-900">{phase}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="px-4 py-3">
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">セットアップ担当者</span>
+                          {allPics.length === 0 && (
+                            <span className="text-xs text-gray-400 italic">担当者未設定の案件のみです</span>
+                          )}
+                          {allPics.map(pic => (
+                            <label
+                              key={pic}
+                              onClick={() => toggleFilter('pics', pic)}
+                              className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
+                            >
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${filterConfig.pics.includes(pic) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {filterConfig.pics.includes(pic) && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="text-sm text-gray-600 group-hover:text-gray-900 break-all">{pic}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </div>,
                     document.body
