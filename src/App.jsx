@@ -49,6 +49,14 @@ import {
   loadJson,
   saveJson,
 } from './cmforce/data/storage.js';
+import {
+  PROJECTS_COLLECTION,
+  STAFF_COLLECTION,
+  subscribeToCollection,
+  saveDocument,
+  deleteDocument,
+  seedIfEmpty,
+} from './cmforce/data/firestoreSync.js';
 
 
 
@@ -56,13 +64,43 @@ import {
 
 // --- メインアプリ ---
 export default function App() {
-  // 案件・担当者は localStorage から復元（初回は mock データ）
+  // 初期値: localStorage（オフラインバックアップ）→ mock の順でフォールバック
   const [projects, setProjects] = useState(() => loadJson(PROJECTS_STORAGE_KEY, mockProjects));
   const [staff, setStaff] = useState(() => loadJson(STAFF_STORAGE_KEY, initialStaff));
 
-  // 変更されたら自動保存
+  // localStorage バックアップ（Firestore 不通時の保険）
   useEffect(() => { saveJson(PROJECTS_STORAGE_KEY, projects); }, [projects]);
   useEffect(() => { saveJson(STAFF_STORAGE_KEY, staff); }, [staff]);
+
+  // Firestore リアルタイム同期: マウント時に空コレクションをシード→ 購読開始
+  useEffect(() => {
+    let canceled = false;
+    let unsub = null;
+    (async () => {
+      // 初回起動時、Firestore が空なら現在の (localStorage or mock) データを移行
+      await seedIfEmpty(PROJECTS_COLLECTION, projects);
+      if (canceled) return;
+      unsub = subscribeToCollection(PROJECTS_COLLECTION, (items) => {
+        if (!canceled && items.length > 0) setProjects(items);
+      });
+    })();
+    return () => { canceled = true; if (unsub) unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let canceled = false;
+    let unsub = null;
+    (async () => {
+      await seedIfEmpty(STAFF_COLLECTION, staff);
+      if (canceled) return;
+      unsub = subscribeToCollection(STAFF_COLLECTION, (items) => {
+        if (!canceled && items.length > 0) setStaff(items);
+      });
+    })();
+    return () => { canceled = true; if (unsub) unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   // 認証状態は localStorage から復元
   const [authedRole, setAuthedRole] = useState(() => {
@@ -118,10 +156,13 @@ export default function App() {
   }, [currentTab]);
 
   const handleSaveStaff = (s) => {
+    // 楽観的更新: UI を即反映 → Firestore へ書き込み (onSnapshot で再同期)
     setStaff(prev => prev.some(x => x.id === s.id) ? prev.map(x => x.id === s.id ? s : x) : [...prev, s]);
+    saveDocument(STAFF_COLLECTION, s.id, s);
   };
   const handleDeleteStaff = (id) => {
     setStaff(prev => prev.filter(s => s.id !== id));
+    deleteDocument(STAFF_COLLECTION, id);
   };
 
   const handleAddProject = (projectData) => {
@@ -149,10 +190,12 @@ export default function App() {
       logs: []
     };
     setProjects(prev => [...prev, newProject]);
+    saveDocument(PROJECTS_COLLECTION, newProject.id, newProject);
   };
 
   const handleUpdateProject = (updatedProject) => {
     setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    saveDocument(PROJECTS_COLLECTION, updatedProject.id, updatedProject);
   };
 
   if (!authedRole) {
