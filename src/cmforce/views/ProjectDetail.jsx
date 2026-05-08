@@ -29,6 +29,13 @@ import Badge from '../ui/Badge.jsx';
 import RankBadge from '../ui/RankBadge.jsx';
 import ArrowDiagram from '../ui/ArrowDiagram.jsx';
 import PhaseDetailPanel from '../ui/PhaseDetailPanel.jsx';
+import { AssistTip } from '../ui/AssistMode.jsx';
+
+const TAB_HINTS = {
+  endUser: 'エンドユーザー（導入先施設）情報。\n企業名・担当部署・連絡先・販売店を確認。\n編集は右上の「編集」ボタンから一括で行えます。',
+  project: '案件情報。\n想定全体売上・担当者・案件ランク・開始日／クローズ予定・卸値／紹介料・ニーズ等を一覧。\n値が空の項目は表示されません。',
+  log: '活動ログ。\n商談記録・次回アクション・アラートを時系列で表示。\n「EUとの商談」フェーズから次へ進めるには、最新ログに「次回アクション日付」が必要です。',
+};
 
 // --- 案件詳細 ---
 const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
@@ -344,21 +351,22 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
             const TabIcon = tab.icon;
             const active = infoTab === tab.key;
             return (
-              <button
-                key={tab.key}
-                onClick={() => setInfoTab(tab.key)}
-                className={`flex-1 px-4 py-3.5 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
-                  active
-                    ? `bg-white ${tab.color}`
-                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-white/60'
-                }`}
-              >
-                <TabIcon className="w-4 h-4" />
-                {tab.label}
-                {tab.badge != null && tab.badge > 0 && (
-                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${active ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{tab.badge}</span>
-                )}
-              </button>
+              <AssistTip key={tab.key} text={TAB_HINTS[tab.key] || tab.label} side="bottom" wrapClassName="flex-1">
+                <button
+                  onClick={() => setInfoTab(tab.key)}
+                  className={`w-full px-4 py-3.5 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
+                    active
+                      ? `bg-white ${tab.color}`
+                      : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-white/60'
+                  }`}
+                >
+                  <TabIcon className="w-4 h-4" />
+                  {tab.label}
+                  {tab.badge != null && tab.badge > 0 && (
+                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${active ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{tab.badge}</span>
+                  )}
+                </button>
+              </AssistTip>
             );
           })}
         </div>

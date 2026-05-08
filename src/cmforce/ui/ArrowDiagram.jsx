@@ -10,6 +10,23 @@ import {
   isBranchablePattern,
   isMarginBranchablePattern,
 } from '../data/phases.js';
+import { AssistTip } from './AssistMode.jsx';
+
+// 各フェーズの説明（アシストモード時にホバー表示）
+const PHASE_DESCRIPTIONS = {
+  '案件発掘':         '見込み顧客や引き合いを最初に拾う段階。\n次の行動: 担当者・連絡先を案件メモに登録し、初回コンタクトを設定。',
+  '案件スクリーニング': '予算・規模・本気度から進めるか判断する段階。\n次の行動: 案件ランク (A/B/C) を仮置き → ヒアリング項目を整理。',
+  'EUとの商談':       'エンドユーザーと直接対話する段階。\n次の行動: 議事録をメモに残し「次回アクション日付」を活動ログに記録（進行に必須）。',
+  '現地調査':         '導入予定先を実地で確認する段階。\n次の行動: 写真・図面リンクを添付、必要機材リストを作成。',
+  '設計':            '構成・機器・配線を設計する段階。\n次の行動: 設計図 / 構成図のリンクを添付、社内レビュー予定を入れる。',
+  '提案書／見積書提出': '正式な提案＋見積りを提出する段階。\n次の行動: 「想定全体売上」入力 もしくは 提案資料リンク添付（進行に必須）。',
+  '販売契約締結':     '契約書を交わし受注確定させる段階。\n次の行動: 契約書ドラフト / 法務確認 / 押印スケジュールを決定。',
+  '施工・納品':       '実際の機器設置・配線・テストを行う段階。\n次の行動: サブタスク（配線・設置・NW・テスト）を全完了させる（進行に必須）。',
+  '一次保守':         '稼働開始後のフォロー期間。最終フェーズです。\n次の行動: 定期点検 / 障害対応 / 追加提案を別案件として起票。',
+};
+
+const phaseHint = (phase) => PHASE_DESCRIPTIONS[phase] ||
+  `フェーズ「${phase}」をクリックすると右側の詳細パネルがこのフェーズの内容に切り替わります。`;
 
 // アローダイヤグラム（詳細画面用）
 // グループ定義:
@@ -104,10 +121,17 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                   const isSelM     = selectedPhase === mPh;
                   const incomplete = (phaseDetails?.[mPh]?.tasks || []).filter(t => !t.completed).length;
                   return (
-                    <button
+                    <AssistTip
                       key={mPh}
+                      text={mPh === 'マージン支払'
+                        ? 'マージン支払フェーズ。\n金額・支払予定日を入力してから次へ進めます。'
+                        : '販売店への支払フェーズ。\n振込/支払証憑のリンクを残しておくと後で楽です。'}
+                      side="top"
+                      wrapClassName="absolute"
+                    >
+                    <button
                       onClick={() => onSelectPhase(mPh)}
-                      className="absolute flex flex-col items-center group focus:outline-none"
+                      className="flex flex-col items-center group focus:outline-none"
                       style={{ bottom: CONTAINER_H - (NODE_CY + NODE_R), left: `${xPct}%`, transform: 'translateX(-50%)', zIndex: 10 }}
                     >
                       <div className="mt-1 h-4 mb-2">
@@ -146,6 +170,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                         </div>
                       </div>
                     </button>
+                    </AssistTip>
                   );
                 })}
               </div>
@@ -177,10 +202,10 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
               const isMarginAnchor = showMarginRow && index === marginBranchIdx;
 
               return (
+                <AssistTip key={phase} text={phaseHint(phase)} side={index < N / 2 ? 'right' : 'left'} wrapClassName="flex-1">
                 <button
-                  key={phase}
                   onClick={() => onSelectPhase(phase)}
-                  className="relative flex flex-col items-center flex-1 group focus:outline-none px-1"
+                  className="relative flex flex-col items-center w-full group focus:outline-none px-1"
                 >
                   {/* 上部ラベル領域（タスク → ステータス → フェーズ名 / 下端を円に揃える） */}
                   <div className="flex flex-col items-center justify-end h-[96px] w-full mb-4">
@@ -272,6 +297,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                     )}
                   </div>
                 </button>
+                </AssistTip>
               );
             })}
           </div>
@@ -314,8 +340,14 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                       const isSelectedSub = selectedPhase === subPh;
                       const incomplete = (phaseDetails?.[subPh]?.tasks || []).filter(t => !t.completed).length;
                       return (
-                        <button
+                        <AssistTip
                           key={subPh}
+                          text={subPh.includes('見積書')
+                            ? '介援隊サブフロー：見積書提出。\n介援隊本部経由のスキーム時のみ通過するステップです。'
+                            : '介援隊サブフロー：納品。\nこのステップ完了後、本流の「施工・納品」へ合流します。'}
+                          side="bottom"
+                        >
+                        <button
                           onClick={() => onSelectPhase(subPh)}
                           className="relative flex flex-col items-center group focus:outline-none"
                         >
@@ -356,6 +388,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                             )}
                           </div>
                         </button>
+                        </AssistTip>
                       );
                     })}
                   </div>
