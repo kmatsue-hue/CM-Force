@@ -44,6 +44,7 @@ import StaffView from './cmforce/views/StaffView.jsx';
 import LoginScreen from './cmforce/views/LoginScreen.jsx';
 import { AUTH_STORAGE_KEY } from './cmforce/data/auth.js';
 import { ToastProvider } from './cmforce/ui/Toast.jsx';
+import Logo from './cmforce/ui/Logo.jsx';
 import {
   PROJECTS_STORAGE_KEY,
   STAFF_STORAGE_KEY,
@@ -216,9 +217,10 @@ export default function App() {
           <div className="flex items-center space-x-1">
             <button
               onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
-              className="text-base font-bold text-gray-900 mr-6 hover:text-purple-700 transition-colors focus:outline-none"
+              className="mr-6 hover:opacity-80 transition-opacity focus:outline-none"
+              aria-label="CM Force ホームへ"
             >
-              CM Force
+              <Logo className="h-9 w-auto" />
             </button>
             {!selectedProject && (
               <>

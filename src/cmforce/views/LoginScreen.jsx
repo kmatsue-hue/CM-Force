@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LogIn } from 'lucide-react';
 import { ROLE_LIST, ROLES } from '../data/roles.js';
 import { ROLE_PASSWORDS } from '../data/auth.js';
+import Logo from '../ui/Logo.jsx';
 
 const LoginScreen = ({ onLogin }) => {
   const [role, setRole] = useState(ROLES.KIKAKU);
@@ -29,12 +30,9 @@ const LoginScreen = ({ onLogin }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-indigo-50 px-4">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-purple-600 text-white mb-4 shadow-lg shadow-purple-600/25">
-            <LogIn className="w-7 h-7" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">CM Force</h1>
-          <p className="text-sm text-gray-500 mt-1">ロールとパスワードでログインしてください</p>
+        <div className="flex flex-col items-center mb-8">
+          <Logo className="h-24 w-auto mb-3" />
+          <p className="text-sm text-gray-500">ロールとパスワードでログインしてください</p>
         </div>
 
         <form
