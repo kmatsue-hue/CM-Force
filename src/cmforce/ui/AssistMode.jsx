@@ -1,4 +1,5 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 // アシストモードのオン/オフを子ツリーへ伝える Context。
 const AssistContext = createContext({ enabled: false });
@@ -15,58 +16,123 @@ export function useAssistMode() {
   return useContext(AssistContext);
 }
 
+const SAFE_MARGIN = 8;          // 画面端からの最小マージン
+const TIP_MAX_WIDTH = 280;
+const GAP = 8;                  // 要素とツールチップの距離
+
 /**
- * ボタンやタブを <AssistTip text="..."> でラップすると、
- * アシストモード ON のときだけホバーで吹き出しを表示する。
- *
- * - ラップ要素は inline-flex（既存レイアウトを壊しにくい）
- * - position は side prop で 'bottom' | 'top' | 'right' | 'left' 切替可
- * - aria-describedby は付与しない（簡易実装）
- *
- * 使い方:
- *   <AssistTip text={"案件を1つの画面で管理\n編集・進行・失注の操作はここから"}>
- *     <button>案件詳細</button>
- *   </AssistTip>
+ * アシストツールチップ。
+ * Portal で document.body に出すため、親の overflow:hidden に切り取られない。
+ * 画面端付近では自動でサイドを反転 (top↔bottom, left↔right) し、
+ * さらに水平/垂直方向に画面内へクランプして見切れを防ぐ。
  */
 export function AssistTip({ text, side = 'bottom', children, wrapClassName = '', wrapStyle }) {
   const { enabled } = useContext(AssistContext);
+  const wrapperRef = useRef(null);
+  const tipRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0, side });
+
+  // wrapClassName に absolute/fixed/sticky が含まれているなら relative を付与しない
+  // (Tailwind position 系クラスが衝突して意図しない方が適用される事故を防ぐ)
+  const hasOuterPositioning = /\b(absolute|fixed|sticky)\b/.test(wrapClassName);
+  const baseClass = hasOuterPositioning ? 'group inline-flex' : 'relative group inline-flex';
+
+  // モード OFF または text 未指定 → ラッパーのみ返す
   if (!enabled || !text) {
-    // OFF 時でもラッパーで配置を司っているケース（absolute 等）がある可能性に備え、
-    // wrapClassName / wrapStyle が指定されていればラッパーは残す。
     if (wrapClassName || wrapStyle) {
       return <span className={wrapClassName} style={wrapStyle}>{children}</span>;
     }
     return children;
   }
 
-  const tipPos = {
-    bottom: 'left-1/2 top-full mt-2 -translate-x-1/2',
-    top:    'left-1/2 bottom-full mb-2 -translate-x-1/2',
-    right:  'left-full top-1/2 ml-2 -translate-y-1/2',
-    left:   'right-full top-1/2 mr-2 -translate-y-1/2',
-  }[side] || 'left-1/2 top-full mt-2 -translate-x-1/2';
+  // 表示位置を計算。ツールチップ実寸を計測してクランプ・反転する。
+  const computePos = (preferredSide) => {
+    if (!wrapperRef.current) return null;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const tipEl = tipRef.current;
+    const tipW = tipEl ? Math.min(tipEl.offsetWidth, TIP_MAX_WIDTH) : TIP_MAX_WIDTH;
+    const tipH = tipEl ? tipEl.offsetHeight : 80;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
-  const arrowPos = {
-    bottom: 'left-1/2 -top-1 -translate-x-1/2',
-    top:    'left-1/2 -bottom-1 -translate-x-1/2',
-    right:  'top-1/2 -left-1 -translate-y-1/2',
-    left:   'top-1/2 -right-1 -translate-y-1/2',
-  }[side] || 'left-1/2 -top-1 -translate-x-1/2';
+    let actualSide = preferredSide;
+    // 自動反転: 入りきらない方向だったら逆に
+    if (preferredSide === 'top' && rect.top < tipH + GAP + SAFE_MARGIN) actualSide = 'bottom';
+    if (preferredSide === 'bottom' && rect.bottom + tipH + GAP > vh - SAFE_MARGIN) actualSide = 'top';
+    if (preferredSide === 'left' && rect.left < tipW + GAP + SAFE_MARGIN) actualSide = 'right';
+    if (preferredSide === 'right' && rect.right + tipW + GAP > vw - SAFE_MARGIN) actualSide = 'left';
 
-  // wrapClassName に absolute/fixed/sticky が含まれているなら relative を付与しない
-  // (Tailwind では position 系クラスが衝突すると CSS 順序勝ちで意図しない方が適用される)
-  const hasOuterPositioning = /\b(absolute|fixed|sticky)\b/.test(wrapClassName);
-  const baseClass = hasOuterPositioning ? 'group inline-flex' : 'relative group inline-flex';
+    let top = 0;
+    let left = 0;
+    if (actualSide === 'bottom') {
+      top = rect.bottom + GAP;
+      left = rect.left + rect.width / 2 - tipW / 2;
+    } else if (actualSide === 'top') {
+      top = rect.top - GAP - tipH;
+      left = rect.left + rect.width / 2 - tipW / 2;
+    } else if (actualSide === 'right') {
+      top = rect.top + rect.height / 2 - tipH / 2;
+      left = rect.right + GAP;
+    } else { // left
+      top = rect.top + rect.height / 2 - tipH / 2;
+      left = rect.left - GAP - tipW;
+    }
+
+    // 画面内へクランプ
+    left = Math.max(SAFE_MARGIN, Math.min(vw - SAFE_MARGIN - tipW, left));
+    top  = Math.max(SAFE_MARGIN, Math.min(vh - SAFE_MARGIN - tipH, top));
+
+    return { top, left, side: actualSide };
+  };
+
+  const handleEnter = () => {
+    setOpen(true);
+    // 1フレーム後にツールチップ実寸を計測して再配置
+    requestAnimationFrame(() => {
+      const next = computePos(side);
+      if (next) setPos(next);
+    });
+  };
+
+  const handleLeave = () => setOpen(false);
+
+  // 開いている間にウィンドウが動いたら閉じる（位置ずれ防止）
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
   return (
-    <span className={`${baseClass} ${wrapClassName}`} style={wrapStyle}>
-      {children}
+    <>
       <span
-        role="tooltip"
-        className={`pointer-events-none absolute z-[300] ${tipPos} hidden group-hover:block w-max max-w-[280px] bg-gray-900 text-white text-xs leading-relaxed font-medium px-3 py-2 rounded-lg shadow-xl whitespace-pre-line`}
+        ref={wrapperRef}
+        className={`${baseClass} ${wrapClassName}`}
+        style={wrapStyle}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+        onFocus={handleEnter}
+        onBlur={handleLeave}
       >
-        {text}
-        <span className={`absolute ${arrowPos} w-2 h-2 bg-gray-900 rotate-45`} />
+        {children}
       </span>
-    </span>
+      {open && createPortal(
+        <span
+          ref={tipRef}
+          role="tooltip"
+          className="pointer-events-none fixed z-[1000] bg-gray-900 text-white text-xs leading-relaxed font-medium px-3 py-2 rounded-lg shadow-xl whitespace-pre-line"
+          style={{ top: pos.top, left: pos.left, maxWidth: TIP_MAX_WIDTH, width: 'max-content' }}
+        >
+          {text}
+        </span>,
+        document.body
+      )}
+    </>
   );
 }
