@@ -28,9 +28,16 @@ export function useAssistMode() {
  *     <button>案件詳細</button>
  *   </AssistTip>
  */
-export function AssistTip({ text, side = 'bottom', children, wrapClassName = '' }) {
+export function AssistTip({ text, side = 'bottom', children, wrapClassName = '', wrapStyle }) {
   const { enabled } = useContext(AssistContext);
-  if (!enabled || !text) return children;
+  if (!enabled || !text) {
+    // OFF 時でもラッパーで配置を司っているケース（absolute 等）がある可能性に備え、
+    // wrapClassName / wrapStyle が指定されていればラッパーは残す。
+    if (wrapClassName || wrapStyle) {
+      return <span className={wrapClassName} style={wrapStyle}>{children}</span>;
+    }
+    return children;
+  }
 
   const tipPos = {
     bottom: 'left-1/2 top-full mt-2 -translate-x-1/2',
@@ -47,7 +54,7 @@ export function AssistTip({ text, side = 'bottom', children, wrapClassName = '' 
   }[side] || 'left-1/2 -top-1 -translate-x-1/2';
 
   return (
-    <span className={`relative group inline-flex ${wrapClassName}`}>
+    <span className={`relative group inline-flex ${wrapClassName}`} style={wrapStyle}>
       {children}
       <span
         role="tooltip"

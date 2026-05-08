@@ -128,11 +128,11 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                         : '販売店への支払フェーズ。\n振込/支払証憑のリンクを残しておくと後で楽です。'}
                       side="top"
                       wrapClassName="absolute"
+                      wrapStyle={{ bottom: CONTAINER_H - (NODE_CY + NODE_R), left: `${xPct}%`, transform: 'translateX(-50%)', zIndex: 10 }}
                     >
                     <button
                       onClick={() => onSelectPhase(mPh)}
                       className="flex flex-col items-center group focus:outline-none"
-                      style={{ bottom: CONTAINER_H - (NODE_CY + NODE_R), left: `${xPct}%`, transform: 'translateX(-50%)', zIndex: 10 }}
                     >
                       <div className="mt-1 h-4 mb-2">
                         {isCurrentM && (
