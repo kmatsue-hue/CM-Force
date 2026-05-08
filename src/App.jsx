@@ -230,7 +230,7 @@ export default function App() {
             <AssistTip text={"クリックでダッシュボード（案件一覧）に戻ります。\nどの画面からでもホームへ。"} side="bottom">
               <button
                 onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
-                className="mr-6 hover:opacity-80 transition-opacity focus:outline-none"
+                className="mr-6 -mt-3 hover:opacity-80 transition-opacity focus:outline-none"
                 aria-label="CM Force ホームへ"
               >
                 <Logo className="h-14 w-auto" />
