@@ -232,6 +232,31 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
     }
   };
 
+  // サブフロー中でも、本流（販売契約締結 / 一次保守）へ直接合流できる脱出口
+  // - 介援隊サブフロー → 販売契約締結 (本流の次フェーズ)
+  // - マージン支払サブフロー → 一次保守 (本流の合流先)
+  const mainSkipTarget = kaientaiFlow.active ? '販売契約締結'
+                       : marginFlow.active   ? MARGIN_MERGE_PHASE
+                       : null;
+
+  const handleSkipToMain = () => {
+    if (kaientaiFlow.active) {
+      onUpdateProject({
+        ...project,
+        status: '販売契約締結',
+        kaientaiFlow: { active: false, sub: 0 },
+        updatedAt: new Date().toISOString(),
+      });
+    } else if (marginFlow.active) {
+      onUpdateProject({
+        ...project,
+        status: MARGIN_MERGE_PHASE,
+        marginFlow: { active: false, sub: 0, completed: true },
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  };
+
   const handleSelectMarginBranch = (branch) => {
     setShowMarginBranchModal(false);
     if (branch === 'normal') {
@@ -559,6 +584,8 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
           onRevertPhase={handleRevertPhase}
           prevPhaseLabel={prevPhaseLabel}
           advanceErrors={advanceErrors}
+          mainSkipTarget={mainSkipTarget}
+          onSkipToMain={handleSkipToMain}
           isAtBranchPoint={
             (!kaientaiFlow.active && project.status === BRANCH_PHASE && isBranchablePattern(project.salesPattern)) ||
             (!marginFlow.active && project.status === MARGIN_BRANCH_PHASE && isMarginBranchablePattern(project.salesPattern) && !marginFlow.completed)

@@ -19,7 +19,7 @@ import { CONSTRUCTION_PHASE, CONSTRUCTION_SUBTASK_TEMPLATE } from '../data/const
 import { useToast } from './Toast.jsx';
 import { AssistTip } from './AssistMode.jsx';
 
-const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, advanceErrors = [], isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
+const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, advanceErrors = [], mainSkipTarget, onSkipToMain, isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [notes, setNotes] = useState(data?.notes || '');
@@ -30,6 +30,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const [marginAmount, setMarginAmount] = useState(data?.marginAmount ?? '');
   const [marginScheduledDate, setMarginScheduledDate] = useState(data?.marginScheduledDate || '');
   const isMarginPaymentPhase = phase === 'マージン支払';
@@ -184,6 +185,17 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 前フェーズへ戻る
+              </button>
+            </AssistTip>
+          )}
+          {isCurrentPhase && mainSkipTarget && !isLost && (
+            <AssistTip text={`サブフローを離脱して、本流の「${mainSkipTarget}」へ直接合流します。\nサブフローのフェーズデータは保持されますが、サブフローは非アクティブ化されます。`} side="top">
+              <button
+                onClick={() => setShowSkipConfirm(true)}
+                className="px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm flex items-center bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100"
+              >
+                本流「{mainSkipTarget}」へ進む
+                <ChevronRight className="w-4 h-4 ml-1" />
               </button>
             </AssistTip>
           )}
@@ -663,6 +675,38 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                 className="px-5 py-2 rounded-full text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm flex items-center"
               >
                 はい、戻す
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 本流へ合流 確認ダイアログ */}
+      {showSkipConfirm && mainSkipTarget && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-96 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center mb-4 text-sky-600">
+              <div className="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center mr-3">
+                <ChevronRight className="w-6 h-6" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900">本流フローへ合流</h4>
+            </div>
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              現在のサブフローを離脱し、本流の「<span className="font-bold text-sky-700">{mainSkipTarget}</span>」へ進みます。<br />
+              <span className="text-xs text-gray-400">※ サブフローのメモ・タスク・リンクは保持されます。後でフェーズ進捗の図から再度参照可能です。</span>
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowSkipConfirm(false)}
+                className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => { setShowSkipConfirm(false); onSkipToMain && onSkipToMain(); }}
+                className="px-5 py-2 rounded-full text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-sm flex items-center"
+              >
+                はい、進む
               </button>
             </div>
           </div>
