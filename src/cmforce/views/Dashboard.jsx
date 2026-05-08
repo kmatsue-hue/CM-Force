@@ -19,6 +19,7 @@ import Card from '../ui/Card.jsx';
 import RankBadge from '../ui/RankBadge.jsx';
 import RankPieChart from '../ui/RankPieChart.jsx';
 import MiniArrowDiagram from '../ui/MiniArrowDiagram.jsx';
+import { AssistTip } from '../ui/AssistMode.jsx';
 
 // --- ダッシュボード ---
 const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false }) => {
@@ -256,16 +257,19 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                 <span className="text-xs font-semibold text-gray-400 tabular-nums">{filteredProjects.length}件</span>
               </h2>
               <div className="flex flex-wrap gap-3 items-center">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="案件・企業名で検索..."
-                    className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all w-56"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+                <AssistTip text={"案件名・エンドユーザー企業名で部分一致検索。\n複数キーワードは未対応です。"} side="bottom">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="案件・企業名で検索..."
+                      className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all w-56"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </AssistTip>
+                <AssistTip text={"販売スキーム / ステータス / セットアップ担当者で絞り込み。\n設定した条件は CSV 出力にも反映されます。"} side="bottom">
                 <div>
                   <button
                     ref={filterButtonRef}
@@ -344,23 +348,27 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                     document.body
                   )}
                 </div>
+                </AssistTip>
                 {canExportCsv && (
-                  <button
-                    onClick={handleExportCsv}
-                    disabled={filteredProjects.length === 0}
-                    className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center shadow-sm"
-                    title="絞り込み結果を CSV ファイルとして書き出します"
-                  >
-                    <Download className="w-4 h-4 mr-2 text-gray-500" />
-                    CSV出力
-                  </button>
+                  <AssistTip text={"現在の絞り込み結果を CSV ダウンロード。\nExcel で開いても日本語が文字化けしません（UTF-8 BOM 付与）。"} side="bottom">
+                    <button
+                      onClick={handleExportCsv}
+                      disabled={filteredProjects.length === 0}
+                      className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center shadow-sm"
+                    >
+                      <Download className="w-4 h-4 mr-2 text-gray-500" />
+                      CSV出力
+                    </button>
+                  </AssistTip>
                 )}
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-bold flex items-center shadow-md hover:bg-purple-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4 mr-1.5" /> 新規案件
-                </button>
+                <AssistTip text={"新しい案件を起こします。\n企業名・案件名・想定売上・販売スキームの最低限を入れて作成 → 詳細画面でフェーズを進めていきます。"} side="bottom">
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-bold flex items-center shadow-md hover:bg-purple-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" /> 新規案件
+                  </button>
+                </AssistTip>
               </div>
             </div>
             <div className="overflow-x-auto">

@@ -17,6 +17,7 @@ import {
 import { PHASES } from '../data/phases.js';
 import { CONSTRUCTION_PHASE, CONSTRUCTION_SUBTASK_TEMPLATE } from '../data/constructionSubtasks.js';
 import { useToast } from './Toast.jsx';
+import { AssistTip } from './AssistMode.jsx';
 
 const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, advanceErrors = [], isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
   const { showToast } = useToast();
@@ -166,24 +167,26 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
             </button>
           )}
           {isCurrentPhase && prevPhaseLabel && (
-            <button
-              onClick={() => {
-                if (isLost) return;
-                setShowRevertConfirm(true);
-              }}
-              disabled={isLost}
-              className={`px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm flex items-center ${
-                isLost
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-              }`}
-              title={`「${prevPhaseLabel}」へ戻る`}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              前フェーズへ戻る
-            </button>
+            <AssistTip text={`誤って進めたフェーズを1つ戻します。\n戻り先: 「${prevPhaseLabel}」\n各フェーズに記録したメモ・タスク・リンクは保持されます。`} side="top">
+              <button
+                onClick={() => {
+                  if (isLost) return;
+                  setShowRevertConfirm(true);
+                }}
+                disabled={isLost}
+                className={`px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm flex items-center ${
+                  isLost
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                前フェーズへ戻る
+              </button>
+            </AssistTip>
           )}
           {isCurrentPhase && !isLastPhase && (
+            <AssistTip text={`次のフェーズへ進める。\n進む先: 「${nextPhaseLabel || ''}」\n\n推奨手順:\n1. このフェーズのタスクをすべて完了\n2. メモ・関連リンクを最新化\n3. 必須条件 (商談=次回アクション日 / 提案=金額or資料) を満たす`} side="top">
             <div className="relative group">
               <button
                 onClick={() => {
@@ -210,7 +213,6 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                       ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
                       : 'bg-green-600 text-white hover:bg-green-700 shadow-md border border-green-600'
                 }`}
-                title={advanceErrors[0] || (hasIncompleteTasks ? '未完了のタスクがあります' : undefined)}
               >
                 {isAtBranchPoint ? '次フェーズへ進める（分岐選択）' : '次フェーズへ進める'}
                 {advanceErrors.length === 0 && !hasIncompleteTasks && !isLost && <ChevronRight className="w-4 h-4 ml-1" />}
@@ -221,6 +223,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                 </div>
               )}
             </div>
+            </AssistTip>
           )}
           <button
             onClick={() => isEditing ? handleSave() : setIsEditing(true)}

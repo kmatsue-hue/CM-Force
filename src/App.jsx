@@ -7,7 +7,8 @@ import {
   MessageSquare, Calendar, Download, Edit,
   Trash2, CheckSquare, Check, Plus, X, ArrowUpDown,
   Link as LinkIcon, ExternalLink,
-  TrendingUp, Target, Award, PieChart, LogOut
+  TrendingUp, Target, Award, PieChart, LogOut,
+  Sparkles
 } from 'lucide-react';
 import {
   ROLES,
@@ -45,6 +46,9 @@ import LoginScreen from './cmforce/views/LoginScreen.jsx';
 import { AUTH_STORAGE_KEY } from './cmforce/data/auth.js';
 import { ToastProvider } from './cmforce/ui/Toast.jsx';
 import Logo from './cmforce/ui/Logo.jsx';
+import { AssistProvider, AssistTip } from './cmforce/ui/AssistMode.jsx';
+
+const ASSIST_STORAGE_KEY = 'cm-force-assist-v1';
 import {
   PROJECTS_STORAGE_KEY,
   STAFF_STORAGE_KEY,
@@ -117,6 +121,13 @@ export default function App() {
   });
   const [currentRole, setCurrentRole] = useState(authedRole || ROLES.KIKAKU);
   const [currentTab, setCurrentTab] = useState(() => window.location.hash === '#quest' ? 'quest' : 'dashboard'); // 'dashboard' | 'kpi' | 'staff' | 'quest'
+  // アシストモード: ON でホバー時にヒントを出す。localStorage 永続化。
+  const [assistMode, setAssistMode] = useState(() => {
+    try { return localStorage.getItem(ASSIST_STORAGE_KEY) === 'on'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(ASSIST_STORAGE_KEY, assistMode ? 'on' : 'off'); } catch { /* ignore */ }
+  }, [assistMode]);
 
   const handleLogin = (role) => {
     try {
@@ -210,70 +221,103 @@ export default function App() {
 
   return (
     <ToastProvider>
+    <AssistProvider enabled={assistMode}>
     <div className="min-h-screen bg-gray-50/80">
       {/* トップナビゲーション */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-1">
-            <button
-              onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
-              className="mr-6 hover:opacity-80 transition-opacity focus:outline-none"
-              aria-label="CM Force ホームへ"
-            >
-              <Logo className="h-14 w-auto" />
-            </button>
+            <AssistTip text={"クリックでダッシュボード（案件一覧）に戻ります。\nどの画面からでもホームへ。"} side="bottom">
+              <button
+                onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
+                className="mr-6 hover:opacity-80 transition-opacity focus:outline-none"
+                aria-label="CM Force ホームへ"
+              >
+                <Logo className="h-14 w-auto" />
+              </button>
+            </AssistTip>
             {!selectedProject && (
               <>
-                <button
-                  onClick={() => setCurrentTab('dashboard')}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${currentTab === 'dashboard' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
-                  ダッシュボード
-                </button>
-                {canViewKpi && (
+                <AssistTip text={"案件一覧・絞り込み・新規追加の起点。\nまずはここから案件全体の状況を確認しましょう。"} side="bottom">
                   <button
-                    onClick={() => setCurrentTab('kpi')}
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center ${currentTab === 'kpi' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    onClick={() => setCurrentTab('dashboard')}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${currentTab === 'dashboard' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
-                    <BarChart3 className="w-4 h-4 mr-1.5" />
-                    ケアマックス KPI
+                    ダッシュボード
                   </button>
+                </AssistTip>
+                {canViewKpi && (
+                  <AssistTip text={"全社/担当者別の数字（受注・売上・進捗ファネル）を一覧。\n月次レビューや戦略会議の前に開いてください。"} side="bottom">
+                    <button
+                      onClick={() => setCurrentTab('kpi')}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center ${currentTab === 'kpi' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      <BarChart3 className="w-4 h-4 mr-1.5" />
+                      ケアマックス KPI
+                    </button>
+                  </AssistTip>
                 )}
                 {canManageStaff && (
-                  <button
-                    onClick={() => setCurrentTab('staff')}
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center ${currentTab === 'staff' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    <Users className="w-4 h-4 mr-1.5" />
-                    担当者管理
-                  </button>
+                  <AssistTip text={"営業企画専用。担当者の追加・編集・部署変更ができます。\n新メンバー入社時に登録してください。"} side="bottom">
+                    <button
+                      onClick={() => setCurrentTab('staff')}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center ${currentTab === 'staff' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      <Users className="w-4 h-4 mr-1.5" />
+                      担当者管理
+                    </button>
+                  </AssistTip>
                 )}
                 {canSeeKaientaiQuest && (
-                  <button
-                    onClick={() => { setSelectedProjectId(null); setCurrentTab('quest'); }}
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center ${currentTab === 'quest' ? 'bg-slate-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    <Award className={`w-4 h-4 mr-1.5 ${currentTab === 'quest' ? 'text-amber-300' : 'text-orange-500'}`} />
-                    QUEST
-                  </button>
+                  <AssistTip text={"営業活動を RPG 風に可視化。チームの稼働や貢献度をゲーム感覚で確認できます。"} side="bottom">
+                    <button
+                      onClick={() => { setSelectedProjectId(null); setCurrentTab('quest'); }}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center ${currentTab === 'quest' ? 'bg-slate-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      <Award className={`w-4 h-4 mr-1.5 ${currentTab === 'quest' ? 'text-amber-300' : 'text-orange-500'}`} />
+                      QUEST
+                    </button>
+                  </AssistTip>
                 )}
               </>
             )}
           </div>
           <div className="flex items-center gap-2">
+            <AssistTip text={assistMode
+              ? "アシストモード: ON\nボタンやタブにマウスを乗せると説明と次の行動アドバイスが表示されます。クリックで OFF。"
+              : "アシストモードを ON にすると、各ボタン・タブの説明と次の行動アドバイスがホバーで表示されます。"
+            } side="bottom">
+              <button
+                type="button"
+                onClick={() => setAssistMode((v) => !v)}
+                className={`inline-flex items-center gap-1 text-xs font-bold rounded-full px-3 py-1.5 border transition-colors ${
+                  assistMode
+                    ? 'bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+                aria-pressed={assistMode}
+                title="アシストモード"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${assistMode ? 'text-amber-600' : 'text-gray-400'}`} />
+                <span className="hidden sm:inline">アシスト{assistMode ? 'ON' : 'OFF'}</span>
+              </button>
+            </AssistTip>
             <span className="hidden sm:inline text-xs font-semibold text-gray-400">ロール</span>
-            <span className="text-sm font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-3 py-1.5">
-              {currentRole}
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-full px-3 py-1.5 transition-colors"
-              title="ログアウト"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">ログアウト</span>
-            </button>
+            <AssistTip text={"現在のログインロール。閲覧/編集できる範囲が決まります。\n変更にはログアウトが必要です。"} side="bottom">
+              <span className="text-sm font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-3 py-1.5">
+                {currentRole}
+              </span>
+            </AssistTip>
+            <AssistTip text={"ログアウトしてログイン画面に戻ります。\n入力中のデータは保存済みなので失われません。"} side="bottom">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-full px-3 py-1.5 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">ログアウト</span>
+              </button>
+            </AssistTip>
           </div>
         </div>
       </div>
@@ -304,6 +348,7 @@ export default function App() {
         )}
       </div>
     </div>
+    </AssistProvider>
     </ToastProvider>
   );
 }
