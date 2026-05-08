@@ -53,8 +53,12 @@ export function AssistTip({ text, side = 'bottom', children, wrapClassName = '',
     left:   'top-1/2 -right-1 -translate-y-1/2',
   }[side] || 'left-1/2 -top-1 -translate-x-1/2';
 
+  // wrapClassName に absolute/fixed/sticky が含まれているなら relative を付与しない
+  // (Tailwind では position 系クラスが衝突すると CSS 順序勝ちで意図しない方が適用される)
+  const hasOuterPositioning = /\b(absolute|fixed|sticky)\b/.test(wrapClassName);
+  const baseClass = hasOuterPositioning ? 'group inline-flex' : 'relative group inline-flex';
   return (
-    <span className={`relative group inline-flex ${wrapClassName}`} style={wrapStyle}>
+    <span className={`${baseClass} ${wrapClassName}`} style={wrapStyle}>
       {children}
       <span
         role="tooltip"
