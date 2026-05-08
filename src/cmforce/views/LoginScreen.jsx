@@ -31,7 +31,7 @@ const LoginScreen = ({ onLogin }) => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-indigo-50 px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <Logo className="h-24 w-auto mb-3" />
+          <Logo className="h-40 w-auto mb-4" />
           <p className="text-sm text-gray-500">ロールとパスワードでログインしてください</p>
         </div>
 

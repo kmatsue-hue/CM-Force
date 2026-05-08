@@ -213,14 +213,14 @@ export default function App() {
     <div className="min-h-screen bg-gray-50/80">
       {/* トップナビゲーション */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-1">
             <button
               onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
               className="mr-6 hover:opacity-80 transition-opacity focus:outline-none"
               aria-label="CM Force ホームへ"
             >
-              <Logo className="h-9 w-auto" />
+              <Logo className="h-14 w-auto" />
             </button>
             {!selectedProject && (
               <>
@@ -286,7 +286,7 @@ export default function App() {
             onUpdateProject={handleUpdateProject}
           />
         ) : currentTab === 'quest' && canSeeKaientaiQuest ? (
-          <div className="-mx-6 -my-8 min-h-[calc(100vh-3.5rem)] bg-neutral-950">
+          <div className="-mx-6 -my-8 min-h-[calc(100vh-4rem)] bg-neutral-950">
             <KaientaiQuest />
           </div>
         ) : currentTab === 'kpi' && canViewKpi ? (
