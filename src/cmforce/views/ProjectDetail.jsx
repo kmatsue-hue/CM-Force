@@ -561,8 +561,44 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
       </Card>
 
       {/* フェーズ進捗 */}
-      <Card className="p-6">
-        <h3 className="text-base font-bold text-gray-900 mb-2">フェーズ進捗</h3>
+      <Card className="p-3 sm:p-6">
+        <div className="flex items-center justify-between mb-2 gap-3">
+          <h3 className="text-base font-bold text-gray-900">フェーズ進捗</h3>
+          <span className="sm:hidden text-[10px] text-gray-400 font-semibold">← スワイプで全体表示 →</span>
+        </div>
+
+        {/* モバイル専用: 現在フェーズの大きな進捗インジケータ。スクロール不要で状況把握可 */}
+        <div className="sm:hidden mb-4 p-3 rounded-xl bg-gradient-to-r from-purple-50 via-purple-50/40 to-transparent border border-purple-100">
+          {(() => {
+            const idx = PHASES.indexOf(effectivePhase);
+            const showIdx = idx >= 0 ? idx : PHASES.indexOf(project.status);
+            const safeIdx = showIdx >= 0 ? showIdx : 0;
+            const pct = ((safeIdx + 1) / PHASES.length) * 100;
+            return (
+              <>
+                <div className="flex items-baseline justify-between mb-2">
+                  <div>
+                    <div className="text-[11px] font-bold text-purple-600 uppercase tracking-wider">現在のフェーズ</div>
+                    <div className="text-base font-extrabold text-gray-900 leading-tight mt-0.5">{effectivePhase}</div>
+                  </div>
+                  <div className="text-[11px] font-bold text-gray-500 tabular-nums">
+                    <span className="text-purple-700 text-base">{safeIdx + 1}</span>
+                    <span className="text-gray-400"> / {PHASES.length}</span>
+                  </div>
+                </div>
+                <div className="h-2 w-full bg-purple-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                {(kaientaiFlow.active || marginFlow.active) && (
+                  <div className="mt-2 text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 inline-block px-2 py-0.5 rounded-full">
+                    {kaientaiFlow.active ? '介援隊サブフロー進行中' : 'マージン支払サブフロー進行中'}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
         <ArrowDiagram
           currentPhase={project.status}
           selectedPhase={selectedPhase}

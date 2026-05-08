@@ -411,22 +411,29 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                             {project.endUser.companyName}
                           </div>
                           {/* モバイル時のみ補助情報を行内に表示 */}
-                          <div className="sm:hidden mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                            {(() => {
-                              const p = project.salesPattern || '';
-                              const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500', text: 'text-sky-700', short: 'P①' }
-                                        : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: 'P②' }
-                                        : p.includes('パターン3') ? { dot: 'bg-green-500', text: 'text-green-700', short: 'P③' }
-                                        : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—' };
-                              return (
-                                <span className="inline-flex items-center gap-1 font-bold">
-                                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                                  <span className={cfg.text}>{cfg.short}</span>
-                                </span>
-                              );
-                            })()}
-                            <span className="font-semibold text-gray-600">{project.status}</span>
-                            <span className="font-semibold text-gray-700 tabular-nums">{formatJPY(project.financial.expectedRevenue || 0)}</span>
+                          <div className="sm:hidden mt-2 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                              {(() => {
+                                const p = project.salesPattern || '';
+                                const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500', text: 'text-sky-700', short: 'P①' }
+                                          : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: 'P②' }
+                                          : p.includes('パターン3') ? { dot: 'bg-green-500', text: 'text-green-700', short: 'P③' }
+                                          : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—' };
+                                return (
+                                  <span className="inline-flex items-center gap-1 font-bold">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                                    <span className={cfg.text}>{cfg.short}</span>
+                                  </span>
+                                );
+                              })()}
+                              <span className="font-semibold text-purple-700">
+                                {project.status}
+                                <span className="ml-1 text-gray-400 tabular-nums">{phaseIdx + 1}/{PHASES.length}</span>
+                              </span>
+                              <span className="ml-auto font-semibold text-gray-700 tabular-nums">{formatJPY(project.financial.expectedRevenue || 0)}</span>
+                            </div>
+                            {/* モバイル用 進捗バー */}
+                            <MiniArrowDiagram currentPhase={project.status} />
                           </div>
                         </td>
                         <td className="hidden sm:table-cell px-5 py-3.5">
