@@ -27,11 +27,26 @@ const GAP = 8;                  // 要素とツールチップの距離
  * さらに水平/垂直方向に画面内へクランプして見切れを防ぐ。
  */
 export function AssistTip({ text, side = 'bottom', children, wrapClassName = '', wrapStyle }) {
+  // ※ Rules of Hooks: 早期 return より前に全ての hook を呼び出すこと。
+  //   enabled の切替で hook 数が変動すると React error #310 になる。
   const { enabled } = useContext(AssistContext);
   const wrapperRef = useRef(null);
   const tipRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, side });
+
+  // 開いている間にウィンドウが動いたら閉じる（位置ずれ防止）
+  // 早期 return 前に置く必要があるため、内部で open フラグをチェック。
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
 
   // wrapClassName に absolute/fixed/sticky が含まれているなら relative を付与しない
   // (Tailwind position 系クラスが衝突して意図しない方が適用される事故を防ぐ)
@@ -96,18 +111,6 @@ export function AssistTip({ text, side = 'bottom', children, wrapClassName = '',
   };
 
   const handleLeave = () => setOpen(false);
-
-  // 開いている間にウィンドウが動いたら閉じる（位置ずれ防止）
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
-  }, [open]);
 
   return (
     <>
