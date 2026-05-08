@@ -142,15 +142,15 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   };
 
   return (
-    <div className="mt-10 border-t border-gray-100 pt-8 animate-in fade-in slide-in-from-top-4 duration-500 relative">
-      <div className="flex items-center justify-between mb-6">
+    <div className="mt-6 sm:mt-10 border-t border-gray-100 pt-5 sm:pt-8 animate-in fade-in slide-in-from-top-4 duration-500 relative">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
         <AssistTip text={`現在表示中のフェーズ「${phase}」の詳細パネル。\nここに記録したメモ・タスク・リンクは案件詳細とフェーズに紐付いて保存されます。\n進行中のフェーズは右上に「進行中」ラベルが付きます。`} side="bottom">
-          <h3 className="text-xl font-bold text-gray-900 flex items-center tracking-tight cursor-help">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center tracking-tight cursor-help">
             <div className="w-1.5 h-6 bg-purple-600 rounded-full mr-3"></div>
-            {phase} <span className="ml-2 text-sm font-semibold text-gray-400 uppercase tracking-wider">Details</span>
+            {phase} <span className="ml-2 text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider">Details</span>
           </h3>
         </AssistTip>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {canStartKaientaiHere && !isLost && (
             <button
               onClick={onStartKaientai}

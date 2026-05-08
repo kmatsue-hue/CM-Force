@@ -212,37 +212,37 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
   const cumulativeProfit = wonProjects.reduce((s, p) => s + ((p.financial?.expectedRevenue || 0) - (p.financial?.wholesalePriceSetup || 0)), 0);
 
   return (
-    <div className="space-y-8 relative">
+    <div className="space-y-5 sm:space-y-8 relative">
       {/* KPI */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 hover:border-gray-200 transition-colors">
-          <p className="text-sm font-bold text-gray-700">進行中案件</p>
-          <p className="text-2xl font-extrabold text-gray-900 mt-2 tabular-nums">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="p-3 sm:p-4 hover:border-gray-200 transition-colors">
+          <p className="text-xs sm:text-sm font-bold text-gray-700">進行中案件</p>
+          <p className="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1.5 sm:mt-2 tabular-nums">
             {activeProjects.length}<span className="text-sm font-bold text-gray-400 ml-1">件</span>
           </p>
-          <p className="text-xs text-gray-500 font-semibold mt-1.5">受注済み {wonProjects.length} 件</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 font-semibold mt-1.5">受注済み {wonProjects.length} 件</p>
         </Card>
 
-        <Card className="p-4 hover:border-gray-200 transition-colors">
-          <p className="text-sm font-bold text-gray-700">想定売上合計</p>
-          <p className="text-2xl font-extrabold text-gray-900 mt-2 tabular-nums">{revenueJPY}</p>
-          <p className="text-xs text-gray-500 font-semibold mt-1.5">全パイプライン</p>
+        <Card className="p-3 sm:p-4 hover:border-gray-200 transition-colors">
+          <p className="text-xs sm:text-sm font-bold text-gray-700">想定売上合計</p>
+          <p className="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1.5 sm:mt-2 tabular-nums">{revenueJPY}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 font-semibold mt-1.5">全パイプライン</p>
         </Card>
 
-        <Card className="p-4 hover:border-gray-200 transition-colors">
-          <p className="text-sm font-bold text-gray-700">売上実績</p>
-          <p className="text-2xl font-extrabold text-gray-900 mt-2 tabular-nums">{formatJPYShort(wonRevenue)}</p>
-          <p className="text-xs text-gray-500 font-semibold mt-1.5">受注 {wonProjects.length} 件</p>
+        <Card className="p-3 sm:p-4 hover:border-gray-200 transition-colors">
+          <p className="text-xs sm:text-sm font-bold text-gray-700">売上実績</p>
+          <p className="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1.5 sm:mt-2 tabular-nums">{formatJPYShort(wonRevenue)}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 font-semibold mt-1.5">受注 {wonProjects.length} 件</p>
           {canViewProfit && (
-            <p className="text-xs font-bold text-emerald-700 mt-2 pt-2 border-t border-emerald-100 flex items-center gap-1">
+            <p className="text-[10px] sm:text-xs font-bold text-emerald-700 mt-2 pt-2 border-t border-emerald-100 flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
               累積利益 <span className="ml-auto tabular-nums">{formatJPYShort(cumulativeProfit)}</span>
             </p>
           )}
         </Card>
 
-        <Card className="p-4 hover:border-gray-200 transition-colors">
-          <p className="text-sm font-bold text-gray-700 mb-2">案件ランク分布</p>
+        <Card className="p-3 sm:p-4 hover:border-gray-200 transition-colors">
+          <p className="text-xs sm:text-sm font-bold text-gray-700 mb-2">案件ランク分布</p>
           <RankPieChart rankCounts={rankCounts} />
         </Card>
       </div>
@@ -251,19 +251,19 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
         {/* 案件一覧 */}
         <div className="space-y-6">
           <Card>
-            <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap gap-3 justify-between items-center bg-white relative z-20">
+            <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3 sm:justify-between sm:items-center bg-white relative z-20">
               <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
                 案件一覧
                 <span className="text-xs font-semibold text-gray-400 tabular-nums">{filteredProjects.length}件</span>
               </h2>
-              <div className="flex flex-wrap gap-3 items-center">
-                <AssistTip text={"案件名・エンドユーザー企業名で部分一致検索。\n複数キーワードは未対応です。"} side="bottom">
-                  <div className="relative">
+              <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+                <AssistTip text={"案件名・エンドユーザー企業名で部分一致検索。\n複数キーワードは未対応です。"} side="bottom" wrapClassName="flex-1 sm:flex-initial min-w-0">
+                  <div className="relative w-full sm:w-auto">
                     <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
                     <input
                       type="text"
                       placeholder="案件・企業名で検索..."
-                      className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all w-56"
+                      className="w-full sm:w-56 pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -375,12 +375,12 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-gray-100 text-gray-400">
                   <tr>
-                    <th className="px-5 py-3 font-semibold text-xs">案件名 / エンドユーザー</th>
-                    <th className="px-5 py-3 font-semibold text-xs">販売スキーム</th>
-                    <th className="px-5 py-3 font-semibold text-xs">ステータス</th>
-                    <th className="px-5 py-3 font-semibold text-xs">想定金額</th>
-                    <th className="px-5 py-3 font-semibold text-xs">ランク</th>
-                    <th className="px-5 py-3"></th>
+                    <th className="px-3 sm:px-5 py-3 font-semibold text-xs">案件名 / エンドユーザー</th>
+                    <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">販売スキーム</th>
+                    <th className="hidden md:table-cell px-5 py-3 font-semibold text-xs">ステータス</th>
+                    <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">想定金額</th>
+                    <th className="px-3 sm:px-5 py-3 font-semibold text-xs">ランク</th>
+                    <th className="px-3 sm:px-5 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -402,16 +402,34 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                         }`}
                         onClick={() => onSelectProject(project.id)}
                       >
-                        <td className="px-5 py-3.5">
-                          <div className="font-bold text-gray-900 leading-tight">
+                        <td className="px-3 sm:px-5 py-3.5">
+                          <div className="font-bold text-gray-900 leading-tight text-sm sm:text-base">
                             {project.name}
                             {project.isLost && <span className="ml-2 text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">LOST</span>}
                           </div>
                           <div className="text-gray-500 text-xs mt-1">
                             {project.endUser.companyName}
                           </div>
+                          {/* モバイル時のみ補助情報を行内に表示 */}
+                          <div className="sm:hidden mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                            {(() => {
+                              const p = project.salesPattern || '';
+                              const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500', text: 'text-sky-700', short: 'P①' }
+                                        : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: 'P②' }
+                                        : p.includes('パターン3') ? { dot: 'bg-green-500', text: 'text-green-700', short: 'P③' }
+                                        : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—' };
+                              return (
+                                <span className="inline-flex items-center gap-1 font-bold">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                                  <span className={cfg.text}>{cfg.short}</span>
+                                </span>
+                              );
+                            })()}
+                            <span className="font-semibold text-gray-600">{project.status}</span>
+                            <span className="font-semibold text-gray-700 tabular-nums">{formatJPY(project.financial.expectedRevenue || 0)}</span>
+                          </div>
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="hidden sm:table-cell px-5 py-3.5">
                           {(() => {
                             const p = project.salesPattern || '';
                             const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500',    text: 'text-sky-700',    short: 'パターン①', sub: '完全卸し' }
@@ -429,16 +447,16 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                             );
                           })()}
                         </td>
-                        <td className="px-5 py-3.5 min-w-[200px]">
+                        <td className="hidden md:table-cell px-5 py-3.5 min-w-[200px]">
                           <div className={`text-xs font-bold mb-1.5 ${project.isLost ? 'text-gray-500' : 'text-gray-900'}`}>
                             {project.status} <span className="text-gray-400 font-semibold tabular-nums ml-1">{phaseIdx + 1}/{PHASES.length}</span>
                           </div>
                           <MiniArrowDiagram currentPhase={project.status} />
                         </td>
-                        <td className="px-5 py-3.5 font-semibold text-gray-700 tabular-nums">
+                        <td className="hidden sm:table-cell px-5 py-3.5 font-semibold text-gray-700 tabular-nums">
                           {formatJPY(project.financial.expectedRevenue || 0)}
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-3 sm:px-5 py-3.5">
                           <RankBadge rank={project.rank} />
                         </td>
                         <td className="px-5 py-3.5 text-right">

@@ -30,9 +30,9 @@ const LoginScreen = ({ onLogin }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-indigo-50 px-4">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <Logo className="h-40 w-auto mb-4" />
-          <p className="text-sm text-gray-500">ロールとパスワードでログインしてください</p>
+        <div className="flex flex-col items-center mb-6 sm:mb-8">
+          <Logo className="h-28 sm:h-40 w-auto mb-3 sm:mb-4" />
+          <p className="text-xs sm:text-sm text-gray-500 text-center">ロールとパスワードでログインしてください</p>
         </div>
 
         <form

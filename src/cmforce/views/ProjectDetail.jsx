@@ -335,7 +335,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
     project.salesPattern?.includes('パターン3') ? 'green' : 'gray';
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* ヘッダー */}
       <div>
         <AssistTip text={"案件一覧（ダッシュボード）に戻ります。\n編集中の内容は保存済みなので失われません。"} side="bottom">
@@ -362,7 +362,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
               </AssistTip>
             </div>
             <AssistTip text={"案件名。\n編集ボタンから変更可。社内検索のキーになるので分かりやすい命名を推奨。"} side="bottom">
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project.name}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight leading-tight">{project.name}</h1>
             </AssistTip>
             {project.summary && (
               <AssistTip text={"案件の要約。\n背景・狙い・特記事項などを1〜2文で。営業メンバー間の引き継ぎに有効。"} side="bottom">

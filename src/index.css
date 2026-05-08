@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* スクロールバーを隠すユーティリティ（横スクロール可能なナビ等に使用） */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .animate-in {
   animation-fill-mode: both;
 }
