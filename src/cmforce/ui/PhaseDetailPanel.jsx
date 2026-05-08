@@ -15,8 +15,11 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { PHASES } from '../data/phases.js';
+import { CONSTRUCTION_PHASE, CONSTRUCTION_SUBTASK_TEMPLATE } from '../data/constructionSubtasks.js';
+import { useToast } from './Toast.jsx';
 
-const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
+const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, advanceErrors = [], isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
+  const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [notes, setNotes] = useState(data?.notes || '');
   const [tasks, setTasks] = useState(data?.tasks || []);
@@ -29,6 +32,11 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   const [marginAmount, setMarginAmount] = useState(data?.marginAmount ?? '');
   const [marginScheduledDate, setMarginScheduledDate] = useState(data?.marginScheduledDate || '');
   const isMarginPaymentPhase = phase === 'マージン支払';
+  const isConstructionPhase = phase === CONSTRUCTION_PHASE;
+  // 施工サブタスク: 未初期化なら template から複製
+  const initialSubTasks = data?.subTasks ?? CONSTRUCTION_SUBTASK_TEMPLATE.map((t) => ({ ...t }));
+  const [subTasks, setSubTasks] = useState(initialSubTasks);
+  const [newSubTaskText, setNewSubTaskText] = useState('');
   // 活動ログのインライン入力
   const [quickLog, setQuickLog] = useState({ content: '', nextAction: '', nextDate: '' });
   const submitQuickLog = () => {
@@ -49,11 +57,39 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
     setLinks(data?.links || []);
     setMarginAmount(data?.marginAmount ?? '');
     setMarginScheduledDate(data?.marginScheduledDate || '');
+    setSubTasks(data?.subTasks ?? CONSTRUCTION_SUBTASK_TEMPLATE.map((t) => ({ ...t })));
     setIsEditing(false);
     setNewTaskText('');
     setNewLinkUrl('');
     setNewLinkTitle('');
+    setNewSubTaskText('');
   }, [phase, data]);
+
+  // 施工サブタスク: 即時保存（楽観的更新）
+  const persistSubTasks = (next) => {
+    setSubTasks(next);
+    onUpdate && onUpdate(phase, { ...data, notes, tasks, links, subTasks: next });
+  };
+  const toggleSubTask = (id) => {
+    if (isLost) return;
+    persistSubTasks(subTasks.map((s) => s.id === id
+      ? { ...s, completed: !s.completed, completedAt: !s.completed ? new Date().toISOString() : null }
+      : s
+    ));
+  };
+  const addSubTask = () => {
+    const label = newSubTaskText.trim();
+    if (!label) return;
+    persistSubTasks([
+      ...subTasks,
+      { id: `custom-${Date.now()}`, label, completed: false, completedAt: null },
+    ]);
+    setNewSubTaskText('');
+  };
+  const removeSubTask = (id) => {
+    if (isLost) return;
+    persistSubTasks(subTasks.filter((s) => s.id !== id));
+  };
 
   const toggleTask = (taskId) => {
     if (isLost) return;
@@ -151,24 +187,37 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
             <div className="relative group">
               <button
                 onClick={() => {
-                  if (hasIncompleteTasks || isLost) return;
-                  // 分岐ポイントでは確認ダイアログを挟まず直接モーダルへ
+                  if (isLost) return;
+                  // 1) フェーズ別の必須条件チェック（registry-driven）
+                  if (advanceErrors.length > 0) {
+                    showToast(advanceErrors.join('\n'), 'error');
+                    return;
+                  }
+                  // 2) 既存ルール: 未完了の通常タスクが残っていれば進めない
+                  if (hasIncompleteTasks) {
+                    showToast('登録されているタスクがすべて完了していません。', 'error');
+                    return;
+                  }
+                  // 3) 分岐ポイントは確認ダイアログを挟まず直接モーダルへ
                   if (isAtBranchPoint) { onAdvancePhase(); return; }
                   setShowConfirm(true);
                 }}
-                disabled={isLost || hasIncompleteTasks}
+                disabled={isLost}
                 className={`px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm flex items-center ${
-                  isLost || hasIncompleteTasks
+                  isLost
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                    : 'bg-green-600 text-white hover:bg-green-700 shadow-md border border-green-600'
+                    : (advanceErrors.length > 0 || hasIncompleteTasks)
+                      ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
+                      : 'bg-green-600 text-white hover:bg-green-700 shadow-md border border-green-600'
                 }`}
+                title={advanceErrors[0] || (hasIncompleteTasks ? '未完了のタスクがあります' : undefined)}
               >
                 {isAtBranchPoint ? '次フェーズへ進める（分岐選択）' : '次フェーズへ進める'}
-                {!hasIncompleteTasks && !isLost && <ChevronRight className="w-4 h-4 ml-1" />}
+                {advanceErrors.length === 0 && !hasIncompleteTasks && !isLost && <ChevronRight className="w-4 h-4 ml-1" />}
               </button>
-              {hasIncompleteTasks && !isLost && (
-                <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-max bg-gray-800 text-white text-xs font-medium px-3 py-2 rounded-lg shadow-lg pointer-events-none z-50">
-                  未完了のタスクがあるため進めません
+              {(hasIncompleteTasks || advanceErrors.length > 0) && !isLost && (
+                <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-max max-w-xs bg-gray-800 text-white text-xs font-medium px-3 py-2 rounded-lg shadow-lg pointer-events-none z-50 whitespace-pre-line">
+                  {advanceErrors.length > 0 ? advanceErrors.join('\n') : '未完了のタスクがあるため進めません'}
                 </div>
               )}
             </div>
@@ -291,6 +340,85 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               </button>
             </div>
           </div>
+
+          {/* 施工サブタスク（施工・納品 フェーズのみ） */}
+          {isConstructionPhase && (
+            <div className="bg-amber-50/40 p-5 rounded-xl border border-amber-100">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-bold text-amber-800 flex items-center">
+                  <CheckSquare className="w-4 h-4 mr-2 text-amber-600" />
+                  施工サブタスク
+                </h4>
+                <span className="text-xs font-bold text-amber-700 bg-white px-2 py-1 rounded-md border border-amber-200">
+                  {subTasks.filter((s) => s.completed).length} / {subTasks.length}
+                </span>
+              </div>
+              {/* 進捗バー */}
+              <div className="h-1.5 w-full bg-amber-100 rounded-full overflow-hidden mb-4">
+                <div
+                  className="h-full bg-amber-500 transition-all duration-500"
+                  style={{ width: `${subTasks.length === 0 ? 0 : (subTasks.filter((s) => s.completed).length / subTasks.length) * 100}%` }}
+                />
+              </div>
+              <div className="space-y-2 mb-3">
+                {subTasks.map((s) => (
+                  <div key={s.id} className="flex items-center group bg-white p-2.5 rounded-lg border border-amber-100">
+                    <button
+                      onClick={() => toggleSubTask(s.id)}
+                      disabled={isLost}
+                      className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                        s.completed
+                          ? 'bg-amber-500 border-amber-500'
+                          : 'border-amber-300 hover:border-amber-500 bg-white'
+                      } ${isLost ? 'cursor-not-allowed opacity-50' : ''}`}
+                      aria-label={s.completed ? '未完了に戻す' : '完了にする'}
+                    >
+                      {s.completed && <Check className="w-3 h-3 text-white" strokeWidth={3.5} />}
+                    </button>
+                    <div className="ml-3 flex-1 min-w-0">
+                      <div className={`text-sm font-medium ${s.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                        {s.label}
+                      </div>
+                      {s.completed && s.completedAt && (
+                        <div className="text-[10px] text-gray-400">完了: {String(s.completedAt).slice(0, 10)}</div>
+                      )}
+                    </div>
+                    {!isLost && (
+                      <button
+                        onClick={() => removeSubTask(s.id)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1"
+                        aria-label="削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {subTasks.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">サブタスクがありません</p>
+                )}
+              </div>
+              {!isLost && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newSubTaskText}
+                    onChange={(e) => setNewSubTaskText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSubTask(); } }}
+                    placeholder="サブタスクを追加 (例: 養生作業)"
+                    className="flex-1 px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  />
+                  <button
+                    onClick={addSubTask}
+                    disabled={!newSubTaskText.trim()}
+                    className="px-3 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* タスクリスト */}
           <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex-1">

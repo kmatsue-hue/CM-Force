@@ -23,6 +23,7 @@ import {
   getMarginSteps,
 } from '../data/phases.js';
 import { formatJPYShort } from '../utils/format.js';
+import { validatePhaseAdvance } from '../data/phaseValidators.js';
 import Card from '../ui/Card.jsx';
 import Badge from '../ui/Badge.jsx';
 import RankBadge from '../ui/RankBadge.jsx';
@@ -78,6 +79,12 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
     return PHASES[idx - 1];
   };
   const prevPhaseLabel = computePrevPhaseLabel();
+
+  // 進行バリデーション: 違反メッセージ配列。空なら進行可能。
+  // サブフロー中は対象外（メインフェーズの進行ルールのみ適用）
+  const advanceErrors = (kaientaiFlow.active || marginFlow.active)
+    ? []
+    : validatePhaseAdvance(project, project.status);
 
   React.useEffect(() => {
     setSelectedPhase(effectivePhase);
@@ -487,6 +494,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
           nextPhaseLabel={nextPhaseLabel}
           onRevertPhase={handleRevertPhase}
           prevPhaseLabel={prevPhaseLabel}
+          advanceErrors={advanceErrors}
           isAtBranchPoint={
             (!kaientaiFlow.active && project.status === BRANCH_PHASE && isBranchablePattern(project.salesPattern)) ||
             (!marginFlow.active && project.status === MARGIN_BRANCH_PHASE && isMarginBranchablePattern(project.salesPattern) && !marginFlow.completed)
