@@ -143,10 +143,12 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   return (
     <div className="mt-10 border-t border-gray-100 pt-8 animate-in fade-in slide-in-from-top-4 duration-500 relative">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-gray-900 flex items-center tracking-tight">
-          <div className="w-1.5 h-6 bg-purple-600 rounded-full mr-3"></div>
-          {phase} <span className="ml-2 text-sm font-semibold text-gray-400 uppercase tracking-wider">Details</span>
-        </h3>
+        <AssistTip text={`現在表示中のフェーズ「${phase}」の詳細パネル。\nここに記録したメモ・タスク・リンクは案件詳細とフェーズに紐付いて保存されます。\n進行中のフェーズは右上に「進行中」ラベルが付きます。`} side="bottom">
+          <h3 className="text-xl font-bold text-gray-900 flex items-center tracking-tight cursor-help">
+            <div className="w-1.5 h-6 bg-purple-600 rounded-full mr-3"></div>
+            {phase} <span className="ml-2 text-sm font-semibold text-gray-400 uppercase tracking-wider">Details</span>
+          </h3>
+        </AssistTip>
         <div className="flex items-center space-x-3">
           {canStartKaientaiHere && !isLost && (
             <button
@@ -225,16 +227,20 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
             </div>
             </AssistTip>
           )}
-          <button
-            onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-            disabled={isLost}
-            className={`px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm ${
-              isLost ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200' :
-              isEditing ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md' : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-100'
-            }`}
-          >
-            {isEditing ? '保存する' : '編集する'}
-          </button>
+          <AssistTip text={isEditing
+            ? "編集中の内容（メモ・タスク・リンク）を保存します。\n保存後はそのままサーバーに反映され、他メンバーにも同期されます。"
+            : "このフェーズのメモ・タスク・関連リンクを編集モードに切り替えます。\nクリック後にフィールドが入力可能になります。"} side="top">
+            <button
+              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+              disabled={isLost}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm ${
+                isLost ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200' :
+                isEditing ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md' : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-100'
+              }`}
+            >
+              {isEditing ? '保存する' : '編集する'}
+            </button>
+          </AssistTip>
         </div>
       </div>
 
@@ -306,10 +312,12 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
 
           {/* 活動ログ クイック入力（コンパクト） */}
           <div className="bg-purple-50/40 border border-purple-100 rounded-xl p-3">
-            <h4 className="text-xs font-bold text-gray-600 mb-2 flex items-center">
-              <MessageSquare className="w-3.5 h-3.5 mr-1.5 text-purple-500" />
-              活動ログをすばやく追加
-            </h4>
+            <AssistTip text={"商談・電話・メールのやり取りを時系列で残せます。\n「次のアクション + 日付」を入れておくと、活動ログタブやアラート表示に活用されます。\n※ EUとの商談 から進めるには最新ログに日付が必要"} side="bottom">
+              <h4 className="text-xs font-bold text-gray-600 mb-2 flex items-center cursor-help">
+                <MessageSquare className="w-3.5 h-3.5 mr-1.5 text-purple-500" />
+                活動ログをすばやく追加
+              </h4>
+            </AssistTip>
             <textarea
               rows={2}
               disabled={isLost}
@@ -426,13 +434,17 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
           {/* タスクリスト */}
           <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex-1">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-gray-700 flex items-center">
-                <CheckSquare className="w-4 h-4 mr-2 text-purple-500" />
-                タスクリスト
-              </h4>
-              <span className="text-xs font-bold text-gray-400 bg-white px-2 py-1 rounded-md border border-gray-200">
-                {tasks.filter(t => t.completed).length} / {tasks.length}
-              </span>
+              <AssistTip text={"このフェーズで完了させるべき作業の TODO リスト。\n未完了タスクが残っていると次フェーズへ進めません（ガード機能）。\nチェックで完了化、ホバーでゴミ箱が出て削除可能。"} side="bottom">
+                <h4 className="text-sm font-bold text-gray-700 flex items-center cursor-help">
+                  <CheckSquare className="w-4 h-4 mr-2 text-purple-500" />
+                  タスクリスト
+                </h4>
+              </AssistTip>
+              <AssistTip text={"完了タスク数 / 全タスク数。\nすべてチェックされると「次フェーズへ進める」ボタンが有効化されます。"} side="left">
+                <span className="text-xs font-bold text-gray-400 bg-white px-2 py-1 rounded-md border border-gray-200 cursor-help">
+                  {tasks.filter(t => t.completed).length} / {tasks.length}
+                </span>
+              </AssistTip>
             </div>
             <div className="space-y-2 mb-4">
               {tasks.map(task => (
@@ -489,10 +501,12 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
 
         {/* 関連リンク */}
         <div className="bg-gray-50/80 border border-gray-100 rounded-xl p-5 flex flex-col h-full min-h-[16rem]">
-          <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center">
-            <LinkIcon className="w-4 h-4 mr-2 text-purple-500" />
-            関連リンク ({links.length})
-          </h4>
+          <AssistTip text={"このフェーズで参照するファイル/ページのリンク集。\n見積書 PDF、提案書 Google Docs、議事録、契約書ドラフト等を URL で添付。\n※ 提案書／見積書提出 から進めるには想定金額または1件以上のリンクが必要"} side="bottom">
+            <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center cursor-help">
+              <LinkIcon className="w-4 h-4 mr-2 text-purple-500" />
+              関連リンク ({links.length})
+            </h4>
+          </AssistTip>
           <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
             {links.map(link => (
               <div
@@ -571,10 +585,12 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
 
       {/* メモ・特記事項（画面下部に移動） */}
       <div className="mt-8">
-        <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center">
-          <FileText className="w-4 h-4 mr-2 text-purple-500" />
-          メモ・特記事項
-        </h4>
+        <AssistTip text={"このフェーズの自由記述メモ。\n背景・先方コメント・社内向け申し送り・注意事項などを残せます。\n編集モードで複数行入力可。Markdown はサポートされていません。"} side="bottom">
+          <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center cursor-help">
+            <FileText className="w-4 h-4 mr-2 text-purple-500" />
+            メモ・特記事項
+          </h4>
+        </AssistTip>
         {isEditing ? (
           <textarea
             className="w-full h-32 p-5 bg-white border-2 border-purple-200 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-4 focus:ring-purple-50 transition-all resize-none leading-relaxed shadow-sm"

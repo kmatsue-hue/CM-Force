@@ -37,6 +37,22 @@ const TAB_HINTS = {
   log: '活動ログ。\n商談記録・次回アクション・アラートを時系列で表示。\n「EUとの商談」フェーズから次へ進めるには、最新ログに「次回アクション日付」が必要です。',
 };
 
+// 各データ項目の説明
+const FIELD_HINTS = {
+  '企業・施設名':  '導入先（エンドユーザー）の正式名称。\n社内システム検索のキーになるので正確に入れてください。',
+  '担当部署':      '先方の窓口部署または担当者名。\n例: 施設長、事務長、IT担当 など。',
+  '連絡先':        '電話番号またはメールアドレス。\n緊急時の連絡先として使うので最新の値に保ちましょう。',
+  '販売店':        '介在する販売店・代理店名。\n直販なら「直販」と入れます。',
+  '担当者':        '社内のセットアップ責任者。\n担当者管理タブで登録された人を割り当てます。',
+  '案件ランク':    'A=確度高 / B=確度中 / C=確度低。\n月次レビューや優先順位付けの軸になります。',
+  '開始日':        '案件着手日。\nダッシュボードのソート・KPI 集計に使用。',
+  'クローズ予定':  '受注見込み日。\nリードタイムの目安として活用、月次予測にも反映されます。',
+  '卸値':          'ケアマックスへの仕入れ値（税抜）。\n粗利計算に使用します。',
+  '紹介料':        '紹介スキーム時の紹介料率(%) と金額。\nパターン3（完全紹介）案件で入力します。',
+  'ニーズ・課題':  'エンドユーザーが解決したい課題や要望。\n提案書のストーリーラインの基礎になるので具体的に。',
+  '想定全体売上':  'この案件で得られる想定売上総額（税抜）。\nダッシュボードのパイプライン金額に反映されます。',
+};
+
 // --- 案件詳細 ---
 const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
   const [selectedPhase, setSelectedPhase] = useState(project.status);
@@ -297,43 +313,65 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
     <div className="space-y-8">
       {/* ヘッダー */}
       <div>
-        <button
-          onClick={onBack}
-          className="flex items-center text-sm text-gray-500 hover:text-purple-600 transition-colors mb-4 font-semibold"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1.5" /> Dashboard に戻る
-        </button>
+        <AssistTip text={"案件一覧（ダッシュボード）に戻ります。\n編集中の内容は保存済みなので失われません。"} side="bottom">
+          <button
+            onClick={onBack}
+            className="flex items-center text-sm text-gray-500 hover:text-purple-600 transition-colors mb-4 font-semibold"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Dashboard に戻る
+          </button>
+        </AssistTip>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge color={patternColor}>{project.salesPattern}</Badge>
-              {isLost && <Badge color="red">LOST</Badge>}
-              <span className="text-xs font-mono text-gray-400">{project.id}</span>
+              <AssistTip text={"販売スキーム。\nパターン1=完全卸し / パターン2=分離 / パターン3=完全紹介。\n編集ボタンから変更できます。"} side="bottom">
+                <Badge color={patternColor}>{project.salesPattern}</Badge>
+              </AssistTip>
+              {isLost && (
+                <AssistTip text={"失注済み案件。\n進行操作は無効化されます。「案件を復活させる」ボタンで戻せます。"} side="bottom">
+                  <Badge color="red">LOST</Badge>
+                </AssistTip>
+              )}
+              <AssistTip text={"案件ID（自動採番）。\n社内連絡や請求書の参照番号として使用できます。"} side="bottom">
+                <span className="text-xs font-mono text-gray-400">{project.id}</span>
+              </AssistTip>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project.name}</h1>
-            {project.summary && <p className="text-sm text-gray-500 mt-1.5">{project.summary}</p>}
+            <AssistTip text={"案件名。\n編集ボタンから変更可。社内検索のキーになるので分かりやすい命名を推奨。"} side="bottom">
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project.name}</h1>
+            </AssistTip>
+            {project.summary && (
+              <AssistTip text={"案件の要約。\n背景・狙い・特記事項などを1〜2文で。営業メンバー間の引き継ぎに有効。"} side="bottom">
+                <p className="text-sm text-gray-500 mt-1.5">{project.summary}</p>
+              </AssistTip>
+            )}
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <button
-              onClick={() => { setEditInfo({ ...project }); setIsEditingInfo(true); }}
-              className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm flex items-center"
-            >
-              <Edit className="w-4 h-4 mr-1.5" /> 編集
-            </button>
+            <AssistTip text={"案件の基本情報を編集します。\n企業名・担当者・金額・スキーム等をモーダルで一括編集可。"} side="bottom">
+              <button
+                onClick={() => { setEditInfo({ ...project }); setIsEditingInfo(true); }}
+                className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm flex items-center"
+              >
+                <Edit className="w-4 h-4 mr-1.5" /> 編集
+              </button>
+            </AssistTip>
             {isLost ? (
-              <button
-                onClick={() => setShowRestoreConfirm(true)}
-                className="px-4 py-2 text-sm font-bold text-purple-600 bg-purple-50 border border-purple-100 rounded-full hover:bg-purple-100 shadow-sm"
-              >
-                案件を復活させる
-              </button>
+              <AssistTip text={"失注扱いを解除して通常の進行案件に戻します。\nお詫び訪問→再提案などの再アタックフロー時に使用。"} side="bottom">
+                <button
+                  onClick={() => setShowRestoreConfirm(true)}
+                  className="px-4 py-2 text-sm font-bold text-purple-600 bg-purple-50 border border-purple-100 rounded-full hover:bg-purple-100 shadow-sm"
+                >
+                  案件を復活させる
+                </button>
+              </AssistTip>
             ) : (
-              <button
-                onClick={() => setShowLostConfirm(true)}
-                className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 shadow-sm"
-              >
-                失注として記録
-              </button>
+              <AssistTip text={"案件を「失注」として記録します。\n失注理由・競合先を入力するモーダルが開きます。\nKPI 集計の母数になるので必ず記録を。"} side="bottom">
+                <button
+                  onClick={() => setShowLostConfirm(true)}
+                  className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 shadow-sm"
+                >
+                  失注として記録
+                </button>
+              </AssistTip>
             )}
           </div>
         </div>
@@ -382,7 +420,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
                 ['販売店', project.endUser.retailerName],
               ].map(([label, value, bold]) => (
                 <div key={label} className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
-                  <dt className="text-xs text-gray-400 font-semibold">{label}</dt>
+                  <AssistTip text={FIELD_HINTS[label] || label} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold cursor-help">{label}</dt>
+                  </AssistTip>
                   <dd className={`text-sm leading-snug ${bold ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{value || <span className="text-gray-300 font-medium">—</span>}</dd>
                 </div>
               ))}
@@ -392,15 +432,19 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
           {infoTab === 'project' && (
             <div className="space-y-5">
               {/* 想定全体売上（強調表示） */}
-              <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-4">
-                <p className="text-xs text-sky-700 font-bold uppercase tracking-wider">想定全体売上</p>
-                <p className="text-3xl font-extrabold text-gray-900 tabular-nums leading-tight mt-1">{formatJPYShort(project.financial?.expectedRevenue || 0)}</p>
-              </div>
+              <AssistTip text={FIELD_HINTS['想定全体売上']} side="bottom">
+                <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-4 cursor-help">
+                  <p className="text-xs text-sky-700 font-bold uppercase tracking-wider">想定全体売上</p>
+                  <p className="text-3xl font-extrabold text-gray-900 tabular-nums leading-tight mt-1">{formatJPYShort(project.financial?.expectedRevenue || 0)}</p>
+                </div>
+              </AssistTip>
 
               {/* 案件情報 + 財務情報 をフラットに */}
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
                 <div className="grid grid-cols-[100px_1fr] gap-2">
-                  <dt className="text-xs text-gray-400 font-semibold pt-0.5">担当者</dt>
+                  <AssistTip text={FIELD_HINTS['担当者']} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">担当者</dt>
+                  </AssistTip>
                   <dd className="text-sm">
                     <span className="font-bold text-gray-900">{project.picSetup || <span className="text-gray-300 font-medium">—</span>}</span>
                     {project.picSetupContact && (
@@ -411,32 +455,44 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
                   </dd>
                 </div>
                 <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
-                  <dt className="text-xs text-gray-400 font-semibold">案件ランク</dt>
+                  <AssistTip text={FIELD_HINTS['案件ランク']} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold cursor-help">案件ランク</dt>
+                  </AssistTip>
                   <dd><RankBadge rank={project.rank} /></dd>
                 </div>
                 <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
-                  <dt className="text-xs text-gray-400 font-semibold">開始日</dt>
+                  <AssistTip text={FIELD_HINTS['開始日']} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold cursor-help">開始日</dt>
+                  </AssistTip>
                   <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.startDate || <span className="text-gray-300 font-medium">—</span>}</dd>
                 </div>
                 <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
-                  <dt className="text-xs text-gray-400 font-semibold">クローズ予定</dt>
+                  <AssistTip text={FIELD_HINTS['クローズ予定']} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold cursor-help">クローズ予定</dt>
+                  </AssistTip>
                   <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.expectedCloseDate || <span className="text-gray-300 font-medium">—</span>}</dd>
                 </div>
                 {project.financial?.wholesalePriceSetup != null && (
                   <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
-                    <dt className="text-xs text-gray-400 font-semibold">卸値</dt>
+                    <AssistTip text={FIELD_HINTS['卸値']} side="right">
+                      <dt className="text-xs text-gray-400 font-semibold cursor-help">卸値</dt>
+                    </AssistTip>
                     <dd className="text-sm font-semibold text-gray-700 tabular-nums">{formatJPYShort(project.financial.wholesalePriceSetup)}</dd>
                   </div>
                 )}
                 {project.financial?.referralFeeRate != null && (
                   <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
-                    <dt className="text-xs text-gray-400 font-semibold">紹介料</dt>
+                    <AssistTip text={FIELD_HINTS['紹介料']} side="right">
+                      <dt className="text-xs text-gray-400 font-semibold cursor-help">紹介料</dt>
+                    </AssistTip>
                     <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.financial.referralFeeRate}% / {formatJPYShort(project.financial.referralFeeAmount || 0)}</dd>
                   </div>
                 )}
                 {project.endUser.needsAndIssues && (
                   <div className="grid grid-cols-[100px_1fr] gap-2 md:col-span-2">
-                    <dt className="text-xs text-gray-400 font-semibold pt-0.5">ニーズ・課題</dt>
+                    <AssistTip text={FIELD_HINTS['ニーズ・課題']} side="right">
+                      <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">ニーズ・課題</dt>
+                    </AssistTip>
                     <dd className="text-sm font-semibold text-gray-700 leading-relaxed">{project.endUser.needsAndIssues}</dd>
                   </div>
                 )}
