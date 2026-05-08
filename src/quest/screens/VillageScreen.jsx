@@ -33,6 +33,9 @@ const VillageScreen = ({
   nightDensity,
   dawnRise,
   villageHour,
+  villageStageBrightness,
+  villageStageSaturation,
+  isCityWindowLit,
 }) => {
   const getCharInfo = (userName) => getCharInfoUtil(userName, user);
   const _renderVillage = () => {
