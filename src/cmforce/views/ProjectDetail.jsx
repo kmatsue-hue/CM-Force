@@ -33,7 +33,7 @@ import PhaseDetailPanel from '../ui/PhaseDetailPanel.jsx';
 import { AssistTip } from '../ui/AssistMode.jsx';
 
 const TAB_HINTS = {
-  endUser: 'エンドユーザー（導入先施設）情報。\n企業名・担当部署・連絡先・販売店を確認。\n編集は右上の「編集」ボタンから一括で行えます。',
+  endUser: 'エンドユーザー（導入先施設）情報。\n企業名・担当者名・連絡先・販売店を確認。\n編集は右上の「編集」ボタンから一括で行えます。',
   project: '案件情報。\n想定全体売上・担当者・案件ランク・開始日／クローズ予定・卸値／紹介料・ニーズ等を一覧。\n値が空の項目は表示されません。',
   log: '活動ログ。\n商談記録・次回アクション・アラートを時系列で表示。\n「EUとの商談」フェーズから次へ進めるには、最新ログに「次回アクション日付」が必要です。',
 };
@@ -41,7 +41,7 @@ const TAB_HINTS = {
 // 各データ項目の説明
 const FIELD_HINTS = {
   '企業・施設名':  '導入先（エンドユーザー）の正式名称。\n社内システム検索のキーになるので正確に入れてください。',
-  '担当部署':      '先方の窓口部署または担当者名。\n例: 施設長、事務長、IT担当 など。',
+  '担当者名':      '先方の窓口担当者名。\n例: 施設長 山田様、事務長 佐藤、IT担当 鈴木 など。',
   '連絡先':        '電話番号またはメールアドレス。\n緊急時の連絡先として使うので最新の値に保ちましょう。',
   '販売店':        '介在する販売店・代理店名。\n直販なら「直販」と入れます。',
   '担当者':        '社内のセットアップ責任者。\n担当者管理タブで登録された人を割り当てます。',
@@ -489,7 +489,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
               {[
                 ['企業・施設名', project.endUser.companyName, true],
-                ['担当部署', project.endUser.department],
+                ['担当者名', project.endUser.department],
                 ['連絡先', project.endUser.contact],
                 ['販売店', project.endUser.retailerName],
               ].map(([label, value, bold]) => (
@@ -828,7 +828,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                       onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, companyName: e.target.value } })} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">担当部署</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">担当者名</label>
                     <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                       value={editInfo.endUser?.department || ''}
                       onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, department: e.target.value } })} />

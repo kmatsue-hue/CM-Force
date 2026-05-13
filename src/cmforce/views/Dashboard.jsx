@@ -134,58 +134,78 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
   const activeFilterCount = filterConfig.patterns.length + filterConfig.statuses.length + filterConfig.pics.length;
 
   // 案件情報を CSV 出力（絞り込み・検索が反映された結果をそのまま出力）
+  // カラムはセクション順に整理:
+  //   [案件基本] [進行状況] [担当・期間] [金額] [エンドユーザー] [その他] [失注情報] [メタ]
   const handleExportCsv = () => {
     const header = [
+      // 案件基本
       '案件ID',
       '案件名',
-      'ステータス',
+      '案件概要',
       '販売スキーム',
-      'ランク',
-      'セットアップ担当',
+      '案件ランク',
+      // 進行状況
+      'ステータス',
+      // 担当・期間
+      'セットアップ担当者',
       '開始日',
       'クローズ予定日',
+      // 金額
       '想定全体売上(円)',
       '卸値(円)',
       '紹介料率(%)',
       '紹介料(円)',
       '直販価格(円)',
+      // エンドユーザー情報
       'エンドユーザー企業名',
+      'エンドユーザー担当者名',
+      'エンドユーザー連絡先',
+      'エンドユーザー住所',
       '販売店',
-      '部署',
-      '連絡先',
-      '住所',
+      // その他
       'ニーズ・課題',
-      '失注',
+      // 失注情報
+      '失注フラグ',
       '失注理由',
-      '競合先',
+      '失注時の競合先',
       '失注日',
-      '更新日',
+      // メタ
+      '更新日時',
     ];
     const rows = filteredProjects.map((p) => [
+      // 案件基本
       p.id,
       p.name,
-      p.status,
+      p.summary ?? '',
       p.salesPattern,
       p.rank,
-      p.picSetup,
-      p.startDate,
-      p.expectedCloseDate,
+      // 進行状況
+      p.status,
+      // 担当・期間
+      p.picSetup ?? '',
+      p.startDate ?? '',
+      p.expectedCloseDate ?? '',
+      // 金額
       p.financial?.expectedRevenue ?? '',
       p.financial?.wholesalePriceSetup ?? '',
       p.financial?.referralFeeRate ?? '',
       p.financial?.referralFeeAmount ?? '',
       p.financial?.directSalesPrice ?? '',
+      // エンドユーザー情報
       p.endUser?.companyName ?? '',
-      p.endUser?.retailerName ?? '',
       p.endUser?.department ?? '',
       p.endUser?.contact ?? '',
       p.endUser?.address ?? '',
+      p.endUser?.retailerName ?? '',
+      // その他
       p.endUser?.needsAndIssues ?? '',
+      // 失注情報
       p.isLost ? '失注' : '',
       p.lostInfo?.reason ?? '',
       p.lostInfo?.competitor ?? '',
       p.lostInfo?.date ?? '',
-      p.updatedAt,
+      // メタ
+      p.updatedAt ?? '',
     ]);
     const csv = rowsToCsv([header, ...rows]);
     downloadCsv(`cm-force-projects-${todayStamp()}.csv`, csv);
