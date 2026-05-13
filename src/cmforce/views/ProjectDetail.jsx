@@ -44,7 +44,8 @@ const FIELD_HINTS = {
   '担当者名':      '先方の窓口担当者名。\n例: 施設長 山田様、事務長 佐藤、IT担当 鈴木 など。',
   '連絡先':        '電話番号またはメールアドレス。\n緊急時の連絡先として使うので最新の値に保ちましょう。',
   '販売店':        '介在する販売店・代理店名。\n直販なら「直販」と入れます。',
-  '担当者':        '社内のセットアップ責任者。\n担当者管理タブで登録された人を割り当てます。',
+  'セットアップ担当者': '社内のセットアップ責任者。\n担当者管理タブで登録された人を割り当てます。',
+  'ケアマックス担当者': 'ケアマックス社内の窓口担当者。\n営業企画・KPI管理側のキーパーソンを指名します。',
   '案件ランク':    'A=確度高 / B=確度中 / C=確度低。\n月次レビューや優先順位付けの軸になります。',
   '開始日':        '案件着手日。\nダッシュボードのソート・KPI 集計に使用。',
   'クローズ予定':  '受注見込み日。\nリードタイムの目安として活用、月次予測にも反映されます。',
@@ -612,9 +613,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
 
               {/* 案件情報 + 財務情報 をフラットに */}
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                <div className="grid grid-cols-[100px_1fr] gap-2">
-                  <AssistTip text={FIELD_HINTS['担当者']} side="right">
-                    <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">担当者</dt>
+                <div className="grid grid-cols-[140px_1fr] gap-2">
+                  <AssistTip text={FIELD_HINTS['セットアップ担当者']} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">セットアップ担当者</dt>
                   </AssistTip>
                   <dd className="text-sm">
                     <span className="font-bold text-gray-900">{project.picSetup || <span className="text-gray-300 font-medium">—</span>}</span>
@@ -625,26 +626,34 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                     )}
                   </dd>
                 </div>
-                <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
+                <div className="grid grid-cols-[140px_1fr] gap-2">
+                  <AssistTip text={FIELD_HINTS['ケアマックス担当者']} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">ケアマックス担当者</dt>
+                  </AssistTip>
+                  <dd className="text-sm">
+                    <span className="font-bold text-gray-900">{project.picCaremax || <span className="text-gray-300 font-medium">—</span>}</span>
+                  </dd>
+                </div>
+                <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
                   <AssistTip text={FIELD_HINTS['案件ランク']} side="right">
                     <dt className="text-xs text-gray-400 font-semibold cursor-help">案件ランク</dt>
                   </AssistTip>
                   <dd><RankBadge rank={project.rank} /></dd>
                 </div>
-                <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                <div className="grid grid-cols-[140px_1fr] gap-2 items-baseline">
                   <AssistTip text={FIELD_HINTS['開始日']} side="right">
                     <dt className="text-xs text-gray-400 font-semibold cursor-help">開始日</dt>
                   </AssistTip>
                   <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.startDate || <span className="text-gray-300 font-medium">—</span>}</dd>
                 </div>
-                <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                <div className="grid grid-cols-[140px_1fr] gap-2 items-baseline">
                   <AssistTip text={FIELD_HINTS['クローズ予定']} side="right">
                     <dt className="text-xs text-gray-400 font-semibold cursor-help">クローズ予定</dt>
                   </AssistTip>
                   <dd className="text-sm font-semibold text-gray-700 tabular-nums">{project.expectedCloseDate || <span className="text-gray-300 font-medium">—</span>}</dd>
                 </div>
                 {project.financial?.wholesalePriceSetup != null && (
-                  <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                  <div className="grid grid-cols-[140px_1fr] gap-2 items-baseline">
                     <AssistTip text={FIELD_HINTS['卸値']} side="right">
                       <dt className="text-xs text-gray-400 font-semibold cursor-help">卸値</dt>
                     </AssistTip>
@@ -652,7 +661,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                   </div>
                 )}
                 {project.financial?.referralFeeRate != null && (
-                  <div className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
+                  <div className="grid grid-cols-[140px_1fr] gap-2 items-baseline">
                     <AssistTip text={FIELD_HINTS['紹介料']} side="right">
                       <dt className="text-xs text-gray-400 font-semibold cursor-help">紹介料</dt>
                     </AssistTip>
@@ -660,7 +669,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                   </div>
                 )}
                 {project.endUser.needsAndIssues && (
-                  <div className="grid grid-cols-[100px_1fr] gap-2 md:col-span-2">
+                  <div className="grid grid-cols-[140px_1fr] gap-2 md:col-span-2">
                     <AssistTip text={FIELD_HINTS['ニーズ・課題']} side="right">
                       <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">ニーズ・課題</dt>
                     </AssistTip>
@@ -828,6 +837,15 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
             </div>
             <div className="space-y-5">
               <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">案件ID <span className="ml-1 text-[10px] font-normal text-gray-400">（自動採番・変更不可）</span></label>
+                <input
+                  type="text"
+                  value={editInfo.id || ''}
+                  readOnly
+                  className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-mono text-gray-600 cursor-not-allowed select-all"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">案件名</label>
                 <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   value={editInfo.name} onChange={e => setEditInfo({ ...editInfo, name: e.target.value })} />
@@ -865,33 +883,38 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                   })}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">案件ランク</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { v: 'A', label: 'A ランク', active: 'bg-emerald-600 text-white border-emerald-600 shadow', idle: 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' },
-                      { v: 'B', label: 'B ランク', active: 'bg-amber-500 text-white border-amber-500 shadow',   idle: 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50' },
-                      { v: 'C', label: 'C ランク', active: 'bg-gray-500 text-white border-gray-500 shadow',     idle: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' },
-                    ].map(r => {
-                      const selected = (editInfo.rank || 'B') === r.v;
-                      return (
-                        <button
-                          key={r.v}
-                          type="button"
-                          onClick={() => setEditInfo({ ...editInfo, rank: r.v })}
-                          className={`px-3 py-2.5 rounded-xl text-sm font-extrabold border-2 transition-all ${selected ? r.active : r.idle}`}
-                        >
-                          {r.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">案件ランク</label>
+                <div className="grid grid-cols-3 gap-2 max-w-sm">
+                  {[
+                    { v: 'A', label: 'A ランク', active: 'bg-emerald-600 text-white border-emerald-600 shadow', idle: 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' },
+                    { v: 'B', label: 'B ランク', active: 'bg-amber-500 text-white border-amber-500 shadow',   idle: 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50' },
+                    { v: 'C', label: 'C ランク', active: 'bg-gray-500 text-white border-gray-500 shadow',     idle: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' },
+                  ].map(r => {
+                    const selected = (editInfo.rank || 'B') === r.v;
+                    return (
+                      <button
+                        key={r.v}
+                        type="button"
+                        onClick={() => setEditInfo({ ...editInfo, rank: r.v })}
+                        className={`px-3 py-2.5 rounded-xl text-sm font-extrabold border-2 transition-all ${selected ? r.active : r.idle}`}
+                      >
+                        {r.label}
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">セットアップ担当者</label>
                   <input type="text" placeholder="例：山田 太郎" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     value={editInfo.picSetup || ''} onChange={e => setEditInfo({ ...editInfo, picSetup: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">ケアマックス担当者</label>
+                  <input type="text" placeholder="例：鈴木 花子" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    value={editInfo.picCaremax || ''} onChange={e => setEditInfo({ ...editInfo, picCaremax: e.target.value })} />
                 </div>
               </div>
               <div>

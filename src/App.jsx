@@ -190,6 +190,7 @@ export default function App() {
       updatedAt: new Date().toISOString(),
       summary: '',
       picSetup: '',
+      picCaremax: '',
       endUser: {
         companyName: projectData.companyName,
         retailerName: '',

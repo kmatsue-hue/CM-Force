@@ -148,6 +148,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
       'ステータス',
       // 担当・期間
       'セットアップ担当者',
+      'ケアマックス担当者',
       '開始日',
       'クローズ予定日',
       // 金額
@@ -183,6 +184,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
       p.status,
       // 担当・期間
       p.picSetup ?? '',
+      p.picCaremax ?? '',
       p.startDate ?? '',
       p.expectedCloseDate ?? '',
       // 金額
