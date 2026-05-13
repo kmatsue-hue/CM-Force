@@ -22,7 +22,7 @@ import MiniArrowDiagram from '../ui/MiniArrowDiagram.jsx';
 import { AssistTip } from '../ui/AssistMode.jsx';
 
 // --- ダッシュボード ---
-const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false }) => {
+const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false, canEdit = true }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -383,14 +383,16 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                     </button>
                   </AssistTip>
                 )}
-                <AssistTip text={"新しい案件を起こします。\n企業名・案件名・想定売上・販売スキームの最低限を入れて作成 → 詳細画面でフェーズを進めていきます。"} side="bottom">
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-bold flex items-center shadow-md hover:bg-purple-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4 mr-1.5" /> 新規案件
-                  </button>
-                </AssistTip>
+                {canEdit && (
+                  <AssistTip text={"新しい案件を起こします。\n企業名・案件名・想定売上・販売スキームの最低限を入れて作成 → 詳細画面でフェーズを進めていきます。"} side="bottom">
+                    <button
+                      onClick={() => setIsModalOpen(true)}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-bold flex items-center shadow-md hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" /> 新規案件
+                    </button>
+                  </AssistTip>
+                )}
               </div>
             </div>
             <div className="overflow-x-auto">

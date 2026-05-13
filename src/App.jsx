@@ -151,6 +151,8 @@ export default function App() {
   };
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
 
+  // 営業部は閲覧専用。新規追加 / 編集 / 削除 / 失注 / フェーズ進行などの書き込み操作は不可。
+  const canEdit = currentRole !== ROLES.EIGYO;
   const canViewKpi = KPI_ALLOWED_ROLES.includes(currentRole);
   const canManageStaff = STAFF_ADMIN_ROLES.includes(currentRole);
   const canSeeKaientaiQuest = KAIENTAI_QUEST_ROLES.includes(currentRole);
@@ -341,7 +343,8 @@ export default function App() {
             project={selectedProject}
             onBack={() => setSelectedProjectId(null)}
             onUpdateProject={handleUpdateProject}
-            onDeleteProject={handleDeleteProject}
+            onDeleteProject={canEdit ? handleDeleteProject : undefined}
+            canEdit={canEdit}
           />
         ) : currentTab === 'quest' && canSeeKaientaiQuest ? (
           <div className="-mx-6 -my-8 min-h-[calc(100vh-4rem)] bg-neutral-950">
@@ -358,6 +361,7 @@ export default function App() {
             onAddProject={handleAddProject}
             canViewProfit={canViewKpi}
             canExportCsv={currentRole === ROLES.KIKAKU || currentRole === ROLES.SETUP}
+            canEdit={canEdit}
           />
         )}
       </div>

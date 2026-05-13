@@ -56,7 +56,7 @@ const FIELD_HINTS = {
 };
 
 // --- 案件詳細 ---
-const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) => {
+const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canEdit = true }) => {
   const [selectedPhase, setSelectedPhase] = useState(project.status);
   const [infoTab, setInfoTab] = useState('endUser'); // 'endUser' | 'project' | 'log'
   const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -76,6 +76,10 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
   const [patternChangedByName, setPatternChangedByName] = useState('');
   const [pendingEditInfo, setPendingEditInfo] = useState(null);
   const isLost = project.isLost || false;
+  // 営業部などの read-only ロール向け: 編集/削除/フェーズ操作を一括ロック。
+  // PhaseDetailPanel 側は isLost を「書き込み禁止」フラグとして使っているので、
+  // !canEdit のときも isLost と同じ扱いにして既存ロジックをそのまま再利用する。
+  const isReadOnly = isLost || !canEdit;
 
   const kaientaiFlow = project.kaientaiFlow || { active: false, sub: 0 };
   const marginFlow   = project.marginFlow   || { active: false, sub: 0 };
@@ -508,15 +512,24 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
             )}
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <AssistTip text={"案件の基本情報を編集します。\n企業名・担当者・金額・スキーム等をモーダルで一括編集可。"} side="bottom">
-              <button
-                onClick={() => { setEditInfo({ ...project }); setIsEditingInfo(true); }}
-                className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm flex items-center"
-              >
-                <Edit className="w-4 h-4 mr-1.5" /> 編集
-              </button>
-            </AssistTip>
-            {onDeleteProject && (
+            {!canEdit && (
+              <AssistTip text={"営業部ロールは閲覧モードです。\n編集・新規追加・削除・フェーズ進行などの書き込み操作は無効化されています。"} side="bottom">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-3 py-1.5">
+                  閲覧モード
+                </span>
+              </AssistTip>
+            )}
+            {canEdit && (
+              <AssistTip text={"案件の基本情報を編集します。\n企業名・担当者・金額・スキーム等をモーダルで一括編集可。"} side="bottom">
+                <button
+                  onClick={() => { setEditInfo({ ...project }); setIsEditingInfo(true); }}
+                  className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm flex items-center"
+                >
+                  <Edit className="w-4 h-4 mr-1.5" /> 編集
+                </button>
+              </AssistTip>
+            )}
+            {canEdit && onDeleteProject && (
               <AssistTip text={"案件をシステムから完全に削除します。\nメモ・タスク・関連リンク・活動ログを含む全データが消失します。\n失注扱いにする方が安全なケースが多いのでご注意ください。"} side="bottom">
                 <button
                   onClick={() => { setDeleteConfirmText(''); setShowDeleteConfirm(true); }}
@@ -526,7 +539,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                 </button>
               </AssistTip>
             )}
-            {isLost ? (
+            {canEdit && (isLost ? (
               <AssistTip text={"失注扱いを解除して通常の進行案件に戻します。\nお詫び訪問→再提案などの再アタックフロー時に使用。"} side="bottom">
                 <button
                   onClick={() => setShowRestoreConfirm(true)}
@@ -544,7 +557,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                   失注として記録
                 </button>
               </AssistTip>
-            )}
+            ))}
           </div>
         </div>
       </div>
@@ -767,7 +780,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
         <PhaseDetailPanel
           phase={selectedPhase}
           data={project.phaseDetails?.[selectedPhase]}
-          isLost={isLost}
+          isLost={isReadOnly}
           onUpdate={handleUpdatePhaseData}
           currentProjectPhase={effectivePhase}
           onAdvancePhase={handleAdvancePhase}
