@@ -211,6 +211,13 @@ export default function App() {
     saveDocument(PROJECTS_COLLECTION, updatedProject.id, updatedProject);
   };
 
+  const handleDeleteProject = (projectId) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    deleteDocument(PROJECTS_COLLECTION, projectId);
+    // 削除した案件が選択中なら詳細を閉じてダッシュボードへ戻る
+    if (selectedProjectId === projectId) setSelectedProjectId(null);
+  };
+
   if (!authedRole) {
     return (
       <ToastProvider>
@@ -333,6 +340,7 @@ export default function App() {
             project={selectedProject}
             onBack={() => setSelectedProjectId(null)}
             onUpdateProject={handleUpdateProject}
+            onDeleteProject={handleDeleteProject}
           />
         ) : currentTab === 'quest' && canSeeKaientaiQuest ? (
           <div className="-mx-6 -my-8 min-h-[calc(100vh-4rem)] bg-neutral-950">

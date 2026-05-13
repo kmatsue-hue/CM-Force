@@ -9,6 +9,7 @@ import {
   Edit,
   FileText,
   MessageSquare,
+  Trash2,
   X,
 } from 'lucide-react';
 import {
@@ -54,7 +55,7 @@ const FIELD_HINTS = {
 };
 
 // --- 案件詳細 ---
-const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
+const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) => {
   const [selectedPhase, setSelectedPhase] = useState(project.status);
   const [infoTab, setInfoTab] = useState('endUser'); // 'endUser' | 'project' | 'log'
   const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -66,6 +67,8 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
   const [lostForm, setLostForm] = useState({ reason: '', competitor: '' });
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showMarginBranchModal, setShowMarginBranchModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const isLost = project.isLost || false;
 
   const kaientaiFlow = project.kaientaiFlow || { active: false, sub: 0 };
@@ -379,6 +382,16 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
                 <Edit className="w-4 h-4 mr-1.5" /> 編集
               </button>
             </AssistTip>
+            {onDeleteProject && (
+              <AssistTip text={"案件をシステムから完全に削除します。\nメモ・タスク・関連リンク・活動ログを含む全データが消失します。\n失注扱いにする方が安全なケースが多いのでご注意ください。"} side="bottom">
+                <button
+                  onClick={() => { setDeleteConfirmText(''); setShowDeleteConfirm(true); }}
+                  className="px-4 py-2 text-sm font-bold text-red-700 bg-white border border-red-200 rounded-full hover:bg-red-50 shadow-sm flex items-center"
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" /> 削除
+                </button>
+              </AssistTip>
+            )}
             {isLost ? (
               <AssistTip text={"失注扱いを解除して通常の進行案件に戻します。\nお詫び訪問→再提案などの再アタックフロー時に使用。"} side="bottom">
                 <button
@@ -934,6 +947,76 @@ const ProjectDetail = ({ project, onBack, onUpdateProject }) => {
             <div className="flex justify-end space-x-3">
               <button onClick={() => setShowRestoreConfirm(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
               <button onClick={handleRestore} className="px-5 py-2 rounded-full text-sm font-bold bg-purple-600 text-white hover:bg-purple-700">復活させる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 削除確認モーダル */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
+            <div className="flex items-center mb-4 text-red-600">
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mr-3 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900">案件を削除しますか？</h4>
+            </div>
+
+            <div className="mb-5 space-y-3">
+              <p className="text-sm text-gray-700 leading-relaxed">
+                以下の案件を <span className="font-bold text-red-700">完全に削除</span> します。<br />
+                操作は取り消せません。
+              </p>
+              <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
+                <div className="text-[11px] text-gray-400 font-semibold">{project.id}</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{project.name}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{project.endUser?.companyName}</div>
+              </div>
+              <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside leading-relaxed">
+                <li>メモ・タスク・関連リンクすべて</li>
+                <li>活動ログ {project.logs?.length || 0} 件</li>
+                <li>フェーズ詳細データすべて</li>
+              </ul>
+              <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  💡 失注扱いにすれば KPI 集計には残しつつ進行を止められます。本当に履歴を残したくない場合のみ削除を選んでください。
+                </p>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-600">
+                  確認のため <code className="px-1.5 py-0.5 rounded bg-gray-100 text-red-700 font-mono">削除</code> と入力してください
+                </span>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="mt-1.5 w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+                  autoFocus
+                />
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteConfirmText.trim() !== '削除') return;
+                  setShowDeleteConfirm(false);
+                  onDeleteProject && onDeleteProject(project.id);
+                  onBack && onBack();
+                }}
+                disabled={deleteConfirmText.trim() !== '削除'}
+                className="px-5 py-2 rounded-full text-sm font-bold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                完全に削除する
+              </button>
             </div>
           </div>
         </div>
