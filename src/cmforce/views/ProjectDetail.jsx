@@ -69,6 +69,10 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
   const [showMarginBranchModal, setShowMarginBranchModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  // パターン（販売スキーム）変更時の確認モーダル
+  const [showPatternChangeConfirm, setShowPatternChangeConfirm] = useState(false);
+  const [patternChangedByName, setPatternChangedByName] = useState('');
+  const [pendingEditInfo, setPendingEditInfo] = useState(null);
   const isLost = project.isLost || false;
 
   const kaientaiFlow = project.kaientaiFlow || { active: false, sub: 0 };
@@ -290,8 +294,40 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
   };
 
   const handleSaveInfo = () => {
+    // 販売スキームが変更されていれば、変更者名の入力ダイアログを挟む
+    if (editInfo.salesPattern !== project.salesPattern) {
+      setPendingEditInfo({ ...editInfo });
+      setPatternChangedByName('');
+      setShowPatternChangeConfirm(true);
+      return;
+    }
     onUpdateProject({ ...editInfo, updatedAt: new Date().toISOString() });
     setIsEditingInfo(false);
+  };
+
+  // パターン変更確認 → 確定: 活動ログに自動記載してから保存
+  const handleConfirmPatternChange = () => {
+    const name = patternChangedByName.trim();
+    if (!name || !pendingEditInfo) return;
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const logEntry = {
+      id: now.getTime(),
+      date: todayStr,
+      type: 'activity',
+      content: `販売スキームを「${project.salesPattern}」から「${pendingEditInfo.salesPattern}」に変更しました。（変更者: ${name}）`,
+      nextAction: '',
+      nextDate: '',
+    };
+    onUpdateProject({
+      ...pendingEditInfo,
+      logs: [logEntry, ...(pendingEditInfo.logs || [])],
+      updatedAt: now.toISOString(),
+    });
+    setShowPatternChangeConfirm(false);
+    setIsEditingInfo(false);
+    setPendingEditInfo(null);
+    setPatternChangedByName('');
   };
 
   const handleAddLog = () => {
@@ -704,6 +740,34 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                 <textarea className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none h-20"
                   value={editInfo.summary || ''} onChange={e => setEditInfo({ ...editInfo, summary: e.target.value })} />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  販売スキーム
+                  {editInfo.salesPattern !== project.salesPattern && (
+                    <span className="ml-2 text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">変更あり（保存時に確認）</span>
+                  )}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                    { v: 'パターン1（完全卸し）', label: 'パターン①', sub: '完全卸し', activeCls: 'bg-sky-600 text-white border-sky-600 shadow', idleCls: 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50' },
+                    { v: 'パターン2（分離）',     label: 'パターン②', sub: '分離',     activeCls: 'bg-yellow-500 text-white border-yellow-500 shadow', idleCls: 'bg-white text-yellow-700 border-yellow-200 hover:bg-yellow-50' },
+                    { v: 'パターン3（完全紹介）', label: 'パターン③', sub: '完全紹介', activeCls: 'bg-green-600 text-white border-green-600 shadow', idleCls: 'bg-white text-green-700 border-green-200 hover:bg-green-50' },
+                  ].map(p => {
+                    const selected = editInfo.salesPattern === p.v;
+                    return (
+                      <button
+                        key={p.v}
+                        type="button"
+                        onClick={() => setEditInfo({ ...editInfo, salesPattern: p.v })}
+                        className={`px-3 py-2.5 rounded-xl border-2 text-left transition-all ${selected ? p.activeCls : p.idleCls}`}
+                      >
+                        <div className="text-sm font-extrabold leading-tight">{p.label}</div>
+                        <div className="text-[10px] font-semibold opacity-80 mt-0.5">{p.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">案件ランク</label>
@@ -947,6 +1011,70 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
             <div className="flex justify-end space-x-3">
               <button onClick={() => setShowRestoreConfirm(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
               <button onClick={handleRestore} className="px-5 py-2 rounded-full text-sm font-bold bg-purple-600 text-white hover:bg-purple-700">復活させる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 販売スキーム変更 確認モーダル */}
+      {showPatternChangeConfirm && pendingEditInfo && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
+            <div className="flex items-center mb-4 text-amber-600">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center mr-3 shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900">販売スキームを変更</h4>
+            </div>
+
+            <div className="mb-5 space-y-3">
+              <p className="text-sm text-gray-700 leading-relaxed">
+                途中で販売スキームを変更します。変更内容は活動ログに自動で記録されます。
+              </p>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400 font-semibold">変更前</span>
+                  <span className="font-bold text-gray-700">{project.salesPattern}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400 font-semibold">変更後</span>
+                  <span className="font-extrabold text-amber-700">{pendingEditInfo.salesPattern}</span>
+                </div>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700">
+                  変更者の名前 <span className="text-red-600">*</span>
+                </span>
+                <input
+                  type="text"
+                  value={patternChangedByName}
+                  onChange={(e) => setPatternChangedByName(e.target.value)}
+                  placeholder="例：山田 太郎"
+                  className="mt-1.5 w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400"
+                  autoFocus
+                />
+                <span className="block mt-1 text-[10px] text-gray-400">入力した名前は活動ログに残ります（取り消しできません）</span>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowPatternChangeConfirm(false);
+                  setPendingEditInfo(null);
+                  setPatternChangedByName('');
+                }}
+                className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleConfirmPatternChange}
+                disabled={patternChangedByName.trim() === ''}
+                className="px-5 py-2 rounded-full text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+              >
+                確定して保存
+              </button>
             </div>
           </div>
         </div>
