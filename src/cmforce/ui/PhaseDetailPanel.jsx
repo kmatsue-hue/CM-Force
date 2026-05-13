@@ -31,6 +31,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   const [showConfirm, setShowConfirm] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+  const [phaseChangeByName, setPhaseChangeByName] = useState('');
   const [marginAmount, setMarginAmount] = useState(data?.marginAmount ?? '');
   const [marginScheduledDate, setMarginScheduledDate] = useState(data?.marginScheduledDate || '');
   const isMarginPaymentPhase = phase === 'マージン支払';
@@ -174,6 +175,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               <button
                 onClick={() => {
                   if (isLost) return;
+                  setPhaseChangeByName('');
                   setShowRevertConfirm(true);
                 }}
                 disabled={isLost}
@@ -191,7 +193,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
           {isCurrentPhase && mainSkipTarget && !isLost && (
             <AssistTip text={`サブフローを離脱して、本流の「${mainSkipTarget}」へ直接合流します。\nサブフローのフェーズデータは保持されますが、サブフローは非アクティブ化されます。`} side="top">
               <button
-                onClick={() => setShowSkipConfirm(true)}
+                onClick={() => { setPhaseChangeByName(''); setShowSkipConfirm(true); }}
                 className="px-5 py-2 rounded-full text-sm font-bold transition-all shadow-sm flex items-center bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100"
               >
                 本流「{mainSkipTarget}」へ進む
@@ -215,8 +217,9 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                     showToast('登録されているタスクがすべて完了していません。', 'error');
                     return;
                   }
-                  // 3) 分岐ポイントは確認ダイアログを挟まず直接モーダルへ
+                  // 3) 分岐ポイントは確認ダイアログを挟まず直接モーダルへ（分岐モーダル側で名前入力を取る）
                   if (isAtBranchPoint) { onAdvancePhase(); return; }
+                  setPhaseChangeByName('');
                   setShowConfirm(true);
                 }}
                 disabled={isLost}
@@ -627,10 +630,24 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               </div>
               <h4 className="text-lg font-bold text-gray-900">フェーズの進行</h4>
             </div>
-            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-              登録されているタスクが全て完了しています。<br /><br />
-              ステータスを次のフェーズ「<span className="font-bold text-purple-700">{nextPhaseLabel || ''}</span>」へ進めてよろしいですか？
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              登録されているタスクが全て完了しています。<br />
+              ステータスを次のフェーズ「<span className="font-bold text-purple-700">{nextPhaseLabel || ''}</span>」へ進めます。
             </p>
+            <label className="block mb-5">
+              <span className="text-xs font-semibold text-gray-700">
+                実行者の名前 <span className="text-red-600">*</span>
+              </span>
+              <input
+                type="text"
+                value={phaseChangeByName}
+                onChange={(e) => setPhaseChangeByName(e.target.value)}
+                placeholder="例：山田 太郎"
+                className="mt-1.5 w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400"
+                autoFocus
+              />
+              <span className="block mt-1 text-[10px] text-gray-400">入力した名前は活動ログに残ります</span>
+            </label>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowConfirm(false)}
@@ -639,10 +656,15 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                 キャンセル
               </button>
               <button
-                onClick={() => { setShowConfirm(false); onAdvancePhase(); }}
-                className="px-5 py-2 rounded-full text-sm font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm flex items-center"
+                onClick={() => {
+                  if (phaseChangeByName.trim() === '') return;
+                  setShowConfirm(false);
+                  onAdvancePhase(phaseChangeByName.trim());
+                }}
+                disabled={phaseChangeByName.trim() === ''}
+                className="px-5 py-2 rounded-full text-sm font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
               >
-                はい、進める
+                確定して進める
               </button>
             </div>
           </div>
@@ -659,10 +681,24 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               </div>
               <h4 className="text-lg font-bold text-gray-900">フェーズを戻す</h4>
             </div>
-            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-              ステータスを一つ前のフェーズ「<span className="font-bold text-amber-700">{prevPhaseLabel || ''}</span>」へ戻してよろしいですか？<br />
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              ステータスを一つ前のフェーズ「<span className="font-bold text-amber-700">{prevPhaseLabel || ''}</span>」へ戻します。<br />
               <span className="text-xs text-gray-400">※ 各フェーズの入力内容（メモ・タスク・リンク）は保持されます。</span>
             </p>
+            <label className="block mb-5">
+              <span className="text-xs font-semibold text-gray-700">
+                実行者の名前 <span className="text-red-600">*</span>
+              </span>
+              <input
+                type="text"
+                value={phaseChangeByName}
+                onChange={(e) => setPhaseChangeByName(e.target.value)}
+                placeholder="例：山田 太郎"
+                className="mt-1.5 w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400"
+                autoFocus
+              />
+              <span className="block mt-1 text-[10px] text-gray-400">入力した名前は活動ログに残ります</span>
+            </label>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowRevertConfirm(false)}
@@ -671,10 +707,15 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                 キャンセル
               </button>
               <button
-                onClick={() => { setShowRevertConfirm(false); onRevertPhase && onRevertPhase(); }}
-                className="px-5 py-2 rounded-full text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm flex items-center"
+                onClick={() => {
+                  if (phaseChangeByName.trim() === '') return;
+                  setShowRevertConfirm(false);
+                  onRevertPhase && onRevertPhase(phaseChangeByName.trim());
+                }}
+                disabled={phaseChangeByName.trim() === ''}
+                className="px-5 py-2 rounded-full text-sm font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
               >
-                はい、戻す
+                確定して戻す
               </button>
             </div>
           </div>
@@ -691,10 +732,24 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               </div>
               <h4 className="text-lg font-bold text-gray-900">本流フローへ合流</h4>
             </div>
-            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
               現在のサブフローを離脱し、本流の「<span className="font-bold text-sky-700">{mainSkipTarget}</span>」へ進みます。<br />
               <span className="text-xs text-gray-400">※ サブフローのメモ・タスク・リンクは保持されます。後でフェーズ進捗の図から再度参照可能です。</span>
             </p>
+            <label className="block mb-5">
+              <span className="text-xs font-semibold text-gray-700">
+                実行者の名前 <span className="text-red-600">*</span>
+              </span>
+              <input
+                type="text"
+                value={phaseChangeByName}
+                onChange={(e) => setPhaseChangeByName(e.target.value)}
+                placeholder="例：山田 太郎"
+                className="mt-1.5 w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 focus:border-sky-400"
+                autoFocus
+              />
+              <span className="block mt-1 text-[10px] text-gray-400">入力した名前は活動ログに残ります</span>
+            </label>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowSkipConfirm(false)}
@@ -703,10 +758,15 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                 キャンセル
               </button>
               <button
-                onClick={() => { setShowSkipConfirm(false); onSkipToMain && onSkipToMain(); }}
-                className="px-5 py-2 rounded-full text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-sm flex items-center"
+                onClick={() => {
+                  if (phaseChangeByName.trim() === '') return;
+                  setShowSkipConfirm(false);
+                  onSkipToMain && onSkipToMain(phaseChangeByName.trim());
+                }}
+                disabled={phaseChangeByName.trim() === ''}
+                className="px-5 py-2 rounded-full text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
               >
-                はい、進む
+                確定して進む
               </button>
             </div>
           </div>

@@ -67,6 +67,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
   const [lostForm, setLostForm] = useState({ reason: '', competitor: '' });
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showMarginBranchModal, setShowMarginBranchModal] = useState(false);
+  const [branchSelectByName, setBranchSelectByName] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   // パターン（販売スキーム）変更時の確認モーダル
@@ -130,29 +131,57 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
     });
   };
 
-  const handleAdvancePhase = () => {
+  // フェーズ進捗 変更ログを先頭追記するヘルパ
+  const prependPhaseLog = (content) => {
+    const now = new Date();
+    return [
+      {
+        id: now.getTime(),
+        date: now.toISOString().split('T')[0],
+        type: 'activity',
+        content,
+        nextAction: '',
+        nextDate: '',
+      },
+      ...(project.logs || []),
+    ];
+  };
+
+  const handleAdvancePhase = (changedBy = '') => {
+    const name = (changedBy || '').trim();
+    const now = new Date().toISOString();
+    const logFor = (fromLabel, toLabel) => prependPhaseLog(
+      `フェーズ進捗: 「${fromLabel}」 → 「${toLabel}」 へ進めました${name ? `（実行者: ${name}）` : ''}`
+    );
+
     // マージン支払サブフロー中
     if (marginFlow.active) {
       if (marginFlow.sub < marginSteps.length - 1) {
+        const fromLabel = marginSteps[marginFlow.sub];
+        const toLabel   = marginSteps[marginFlow.sub + 1];
         onUpdateProject({
           ...project,
           marginFlow: { active: true, sub: marginFlow.sub + 1 },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, toLabel),
+          updatedAt: now,
         });
       } else {
         // サブフロー完了 → 「一次保守」に合流
+        const fromLabel = marginSteps[marginFlow.sub];
         onUpdateProject({
           ...project,
           status: MARGIN_MERGE_PHASE,
           marginFlow: { active: false, sub: 0, completed: true },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, MARGIN_MERGE_PHASE),
+          updatedAt: now,
         });
       }
       return;
     }
 
-    // 「施工・納品」かつ全パターン → マージン分岐選択モーダル
+    // 「施工・納品」かつ全パターン → マージン分岐選択モーダル（ログはサブモーダルで記録）
     if (project.status === MARGIN_BRANCH_PHASE && isMarginBranchablePattern(project.salesPattern) && !marginFlow.completed) {
+      setBranchSelectByName('');
       setShowMarginBranchModal(true);
       return;
     }
@@ -160,25 +189,31 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
     // 介援隊サブフロー中
     if (kaientaiFlow.active) {
       if (kaientaiFlow.sub < KAIENTAI_SUB.length - 1) {
+        const fromLabel = KAIENTAI_SUB[kaientaiFlow.sub];
+        const toLabel   = KAIENTAI_SUB[kaientaiFlow.sub + 1];
         onUpdateProject({
           ...project,
           kaientaiFlow: { active: true, sub: kaientaiFlow.sub + 1 },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, toLabel),
+          updatedAt: now,
         });
       } else {
         // サブフロー完了 → 「施工・納品」に合流
+        const fromLabel = KAIENTAI_SUB[kaientaiFlow.sub];
         onUpdateProject({
           ...project,
           status: MERGE_PHASE,
           kaientaiFlow: { active: false, sub: 0, completed: true },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, MERGE_PHASE),
+          updatedAt: now,
         });
       }
       return;
     }
 
-    // 「提案書／見積書提出」かつパターン①/② → 分岐選択モーダル
+    // 「提案書／見積書提出」かつパターン①/② → 分岐選択モーダル（ログはサブモーダルで記録）
     if (project.status === BRANCH_PHASE && isBranchablePattern(project.salesPattern)) {
+      setBranchSelectByName('');
       setShowBranchModal(true);
       return;
     }
@@ -187,26 +222,42 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
     const currentIndex = PHASES.indexOf(project.status);
     if (currentIndex < PHASES.length - 1) {
       const nextPhase = PHASES[currentIndex + 1];
-      onUpdateProject({ ...project, status: nextPhase, updatedAt: new Date().toISOString() });
+      onUpdateProject({
+        ...project,
+        status: nextPhase,
+        logs: logFor(project.status, nextPhase),
+        updatedAt: now,
+      });
     }
   };
 
-  const handleRevertPhase = () => {
+  const handleRevertPhase = (changedBy = '') => {
+    const name = (changedBy || '').trim();
+    const now = new Date().toISOString();
+    const logFor = (fromLabel, toLabel) => prependPhaseLog(
+      `フェーズ進捗: 「${fromLabel}」 → 「${toLabel}」 へ戻しました${name ? `（実行者: ${name}）` : ''}`
+    );
+
     // マージン支払サブフロー中
     if (marginFlow.active) {
       if (marginFlow.sub > 0) {
+        const fromLabel = marginSteps[marginFlow.sub];
+        const toLabel   = marginSteps[marginFlow.sub - 1];
         onUpdateProject({
           ...project,
           marginFlow: { active: true, sub: marginFlow.sub - 1 },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, toLabel),
+          updatedAt: now,
         });
       } else {
         // サブフロー先頭から戻る → サブフロー離脱して MARGIN_BRANCH_PHASE (施工・納品) へ
+        const fromLabel = marginSteps[0];
         onUpdateProject({
           ...project,
           status: MARGIN_BRANCH_PHASE,
           marginFlow: { active: false, sub: 0 },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, MARGIN_BRANCH_PHASE),
+          updatedAt: now,
         });
       }
       return;
@@ -215,17 +266,22 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
     // 介援隊サブフロー中
     if (kaientaiFlow.active) {
       if (kaientaiFlow.sub > 0) {
+        const fromLabel = KAIENTAI_SUB[kaientaiFlow.sub];
+        const toLabel   = KAIENTAI_SUB[kaientaiFlow.sub - 1];
         onUpdateProject({
           ...project,
           kaientaiFlow: { active: true, sub: kaientaiFlow.sub - 1 },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, toLabel),
+          updatedAt: now,
         });
       } else {
         // サブフロー先頭から戻る → BRANCH_PHASE のままサブフローを離脱
+        const fromLabel = KAIENTAI_SUB[0];
         onUpdateProject({
           ...project,
           kaientaiFlow: { active: false, sub: 0 },
-          updatedAt: new Date().toISOString(),
+          logs: logFor(fromLabel, BRANCH_PHASE),
+          updatedAt: now,
         });
       }
       return;
@@ -235,7 +291,12 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
     const currentIndex = PHASES.indexOf(project.status);
     if (currentIndex > 0) {
       const prevPhase = PHASES[currentIndex - 1];
-      onUpdateProject({ ...project, status: prevPhase, updatedAt: new Date().toISOString() });
+      onUpdateProject({
+        ...project,
+        status: prevPhase,
+        logs: logFor(project.status, prevPhase),
+        updatedAt: now,
+      });
     }
   };
 
@@ -246,49 +307,85 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                        : marginFlow.active   ? MARGIN_MERGE_PHASE
                        : null;
 
-  const handleSkipToMain = () => {
+  const handleSkipToMain = (changedBy = '') => {
+    const name = (changedBy || '').trim();
+    const now = new Date().toISOString();
     if (kaientaiFlow.active) {
+      const fromLabel = KAIENTAI_SUB[kaientaiFlow.sub];
       onUpdateProject({
         ...project,
         status: '販売契約締結',
         kaientaiFlow: { active: false, sub: 0 },
-        updatedAt: new Date().toISOString(),
+        logs: prependPhaseLog(
+          `フェーズ進捗: サブフロー「${fromLabel}」を抜けて本流「販売契約締結」へ合流しました${name ? `（実行者: ${name}）` : ''}`
+        ),
+        updatedAt: now,
       });
     } else if (marginFlow.active) {
+      const fromLabel = marginSteps[marginFlow.sub];
       onUpdateProject({
         ...project,
         status: MARGIN_MERGE_PHASE,
         marginFlow: { active: false, sub: 0, completed: true },
-        updatedAt: new Date().toISOString(),
+        logs: prependPhaseLog(
+          `フェーズ進捗: サブフロー「${fromLabel}」を抜けて本流「${MARGIN_MERGE_PHASE}」へ合流しました${name ? `（実行者: ${name}）` : ''}`
+        ),
+        updatedAt: now,
       });
     }
   };
 
-  const handleSelectMarginBranch = (branch) => {
+  const handleSelectMarginBranch = (branch, changedBy = '') => {
+    const name = (changedBy || '').trim();
+    const now = new Date().toISOString();
     setShowMarginBranchModal(false);
+    setBranchSelectByName('');
     if (branch === 'normal') {
       // 通常 → 一次保守
-      onUpdateProject({ ...project, status: MARGIN_MERGE_PHASE, updatedAt: new Date().toISOString() });
+      onUpdateProject({
+        ...project,
+        status: MARGIN_MERGE_PHASE,
+        logs: prependPhaseLog(
+          `フェーズ分岐: 「${MARGIN_BRANCH_PHASE}」 から 「${MARGIN_MERGE_PHASE}」 へ進めました（マージン支払なし）${name ? `（実行者: ${name}）` : ''}`
+        ),
+        updatedAt: now,
+      });
     } else if (branch === 'margin') {
       onUpdateProject({
         ...project,
         marginFlow: { active: true, sub: 0 },
-        updatedAt: new Date().toISOString(),
+        logs: prependPhaseLog(
+          `フェーズ分岐: 「${MARGIN_BRANCH_PHASE}」 からマージン支払サブフローを開始しました${name ? `（実行者: ${name}）` : ''}`
+        ),
+        updatedAt: now,
       });
     }
   };
 
-  const handleSelectBranch = (branch) => {
+  const handleSelectBranch = (branch, changedBy = '') => {
+    const name = (changedBy || '').trim();
+    const now = new Date().toISOString();
     setShowBranchModal(false);
+    setBranchSelectByName('');
     if (branch === 'setup') {
       // セットアップ → 通常通り「販売契約締結」へ
-      onUpdateProject({ ...project, status: '販売契約締結', updatedAt: new Date().toISOString() });
+      onUpdateProject({
+        ...project,
+        status: '販売契約締結',
+        logs: prependPhaseLog(
+          `フェーズ分岐: 「${BRANCH_PHASE}」 から 「販売契約締結」 へ進めました（セットアップフロー選択）${name ? `（実行者: ${name}）` : ''}`
+        ),
+        updatedAt: now,
+      });
     } else if (branch === 'kaientai') {
       // 介援隊サブフロー開始（statusは BRANCH_PHASE のままサブフラグで管理）
       onUpdateProject({
         ...project,
         kaientaiFlow: { active: true, sub: 0 },
-        updatedAt: new Date().toISOString(),
+        logs: prependPhaseLog(
+          `フェーズ分岐: 「${BRANCH_PHASE}」 から介援隊サブフローを開始しました${name ? `（実行者: ${name}）` : ''}`
+        ),
+        updatedAt: now,
       });
     }
   };
@@ -929,8 +1026,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
-                onClick={() => handleSelectMarginBranch('normal')}
-                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50/40 transition-all group"
+                onClick={() => { if (branchSelectByName.trim()) handleSelectMarginBranch('normal', branchSelectByName.trim()); }}
+                disabled={branchSelectByName.trim() === ''}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50/40 transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-purple-600 bg-purple-50 border border-purple-200">通常</span>
@@ -939,8 +1037,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                 <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">マージン処理を行わずに次フェーズへ進みます。</p>
               </button>
               <button
-                onClick={() => handleSelectMarginBranch('margin')}
-                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/40 transition-all group"
+                onClick={() => { if (branchSelectByName.trim()) handleSelectMarginBranch('margin', branchSelectByName.trim()); }}
+                disabled={branchSelectByName.trim() === ''}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/40 transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">マージン</span>
@@ -953,8 +1052,22 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                 </p>
               </button>
             </div>
+            <label className="block mt-5">
+              <span className="text-xs font-semibold text-gray-700">
+                実行者の名前 <span className="text-red-600">*</span>
+              </span>
+              <input
+                type="text"
+                value={branchSelectByName}
+                onChange={(e) => setBranchSelectByName(e.target.value)}
+                placeholder="例：山田 太郎"
+                className="mt-1.5 w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                autoFocus
+              />
+              <span className="block mt-1 text-[10px] text-gray-400">名前を入力後、選択したフローのカードをクリックすると確定します</span>
+            </label>
             <div className="flex justify-end mt-5 pt-4 border-t border-gray-100">
-              <button onClick={() => setShowMarginBranchModal(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
+              <button onClick={() => { setShowMarginBranchModal(false); setBranchSelectByName(''); }} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
             </div>
           </div>
         </div>
@@ -975,8 +1088,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
-                onClick={() => handleSelectBranch('setup')}
-                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50/40 transition-all group"
+                onClick={() => { if (branchSelectByName.trim()) handleSelectBranch('setup', branchSelectByName.trim()); }}
+                disabled={branchSelectByName.trim() === ''}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50/40 transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">セットアップ</span>
@@ -985,8 +1099,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                 <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">そのまま「販売契約締結 → 施工・納品 → 一次保守」へ進みます。</p>
               </button>
               <button
-                onClick={() => handleSelectBranch('kaientai')}
-                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50/40 transition-all group"
+                onClick={() => { if (branchSelectByName.trim()) handleSelectBranch('kaientai', branchSelectByName.trim()); }}
+                disabled={branchSelectByName.trim() === ''}
+                className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50/40 transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-blue-600 bg-blue-50 border border-blue-200">介援隊</span>
@@ -995,8 +1110,22 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject }) =>
                 <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">「介援隊：見積書提出 → 介援隊：納品」を経由して「施工・納品」に合流します。</p>
               </button>
             </div>
+            <label className="block mt-5">
+              <span className="text-xs font-semibold text-gray-700">
+                実行者の名前 <span className="text-red-600">*</span>
+              </span>
+              <input
+                type="text"
+                value={branchSelectByName}
+                onChange={(e) => setBranchSelectByName(e.target.value)}
+                placeholder="例：山田 太郎"
+                className="mt-1.5 w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400"
+                autoFocus
+              />
+              <span className="block mt-1 text-[10px] text-gray-400">名前を入力後、選択したフローのカードをクリックすると確定します</span>
+            </label>
             <div className="flex justify-end mt-5 pt-4 border-t border-gray-100">
-              <button onClick={() => setShowBranchModal(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
+              <button onClick={() => { setShowBranchModal(false); setBranchSelectByName(''); }} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
             </div>
           </div>
         </div>
