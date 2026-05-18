@@ -362,6 +362,7 @@ export default function App() {
             canViewProfit={canViewKpi}
             canExportCsv={currentRole === ROLES.KIKAKU || currentRole === ROLES.SETUP}
             canEdit={canEdit}
+            canSwitchDashboardMode={currentRole === ROLES.KIKAKU}
           />
         )}
       </div>

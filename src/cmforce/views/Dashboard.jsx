@@ -21,8 +21,24 @@ import RankPieChart from '../ui/RankPieChart.jsx';
 import MiniArrowDiagram from '../ui/MiniArrowDiagram.jsx';
 import { AssistTip } from '../ui/AssistMode.jsx';
 
+const DASHBOARD_MODE_STORAGE_KEY = 'cm-force-dashboard-mode-v1';
+
 // --- ダッシュボード ---
-const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false, canEdit = true }) => {
+const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false, canEdit = true, canSwitchDashboardMode = false }) => {
+  // 企画部のみ表示する セットアップ / テクノスジャパン 切替スイッチ
+  // モードは localStorage に保持しておきリロード後も復元される
+  const [dashboardMode, setDashboardMode] = useState(() => {
+    if (!canSwitchDashboardMode) return 'setup';
+    try {
+      const saved = localStorage.getItem(DASHBOARD_MODE_STORAGE_KEY);
+      return saved === 'technos' ? 'technos' : 'setup';
+    } catch { return 'setup'; }
+  });
+  useEffect(() => {
+    if (!canSwitchDashboardMode) return;
+    try { localStorage.setItem(DASHBOARD_MODE_STORAGE_KEY, dashboardMode); } catch { /* ignore */ }
+  }, [dashboardMode, canSwitchDashboardMode]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -235,6 +251,63 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
 
   return (
     <div className="space-y-5 sm:space-y-8 relative">
+      {/* 企画部のみ: セットアップ / テクノスジャパン モード切替 */}
+      {canSwitchDashboardMode && (
+        <div className="flex justify-center">
+          <AssistTip
+            text={"セットアップ案件と テクノスジャパン案件の管理ビューを切り替えます。\nテクノスジャパンビューは現在準備中です。"}
+            side="bottom"
+          >
+            <div className="inline-flex p-1 bg-gray-100 rounded-full border border-gray-200 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setDashboardMode('setup')}
+                className={`px-5 py-1.5 rounded-full text-sm font-bold transition-all ${
+                  dashboardMode === 'setup'
+                    ? 'bg-white text-purple-700 shadow-sm border border-purple-100'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+                aria-pressed={dashboardMode === 'setup'}
+              >
+                セットアップ
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardMode('technos')}
+                className={`px-5 py-1.5 rounded-full text-sm font-bold transition-all ${
+                  dashboardMode === 'technos'
+                    ? 'bg-white text-emerald-700 shadow-sm border border-emerald-100'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+                aria-pressed={dashboardMode === 'technos'}
+              >
+                テクノスジャパン
+              </button>
+            </div>
+          </AssistTip>
+        </div>
+      )}
+
+      {/* テクノスジャパン モード（プレースホルダー枠） */}
+      {dashboardMode === 'technos' ? (
+        <div className="space-y-4">
+          <Card className="p-8 sm:p-12 text-center bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 border-emerald-100">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 mb-4">
+              <span className="text-xl font-extrabold">T</span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">テクノスジャパン 案件管理</h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2 leading-relaxed max-w-md mx-auto">
+              テクノスジャパン専用の案件管理フローを構築中です。<br />
+              フェーズ・項目・KPI の要件が確定したら、こちらに新しい管理ビューを実装します。
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 text-[11px] font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-full px-3 py-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              実装予定
+            </div>
+          </Card>
+        </div>
+      ) : (
+      <>
       {/* KPI */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-3 sm:p-4 hover:border-gray-200 transition-colors">
@@ -512,6 +585,8 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
         </div>
 
       </div>
+      </>
+      )}
 
       {/* 失注情報モーダル */}
       {lostInfoModal && (
