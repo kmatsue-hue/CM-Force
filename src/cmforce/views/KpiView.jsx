@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Download,
   FileText,
-  MessageSquare,
   PieChart,
   Target,
   TrendingUp,
@@ -32,8 +31,9 @@ const KpiView = ({ projects, onSelectProject }) => {
       '案件ID', '案件名', 'ステータス', '状態', 'ランク', '販売パターン',
       '開始日', '想定クローズ日', '最終更新',
       'エンドユーザー', '販売店', '部署', '連絡先', '住所', 'ニーズ・課題',
-      '想定売上', 'セットアップ卸価格', '小売価格', '獲得利益額',
-      'セットアップ担当', '概要',
+      '活動ログ',
+      '想定売上', 'SOMPOケアソリューションズ卸価格', '小売価格', '獲得利益額',
+      'SOMPOケアソリューションズ担当', '概要',
       '失注日', '失注理由', '競合情報',
     ];
     const rows = projects.map(p => [
@@ -41,6 +41,10 @@ const KpiView = ({ projects, onSelectProject }) => {
       p.startDate, p.expectedCloseDate, p.updatedAt,
       p.endUser?.companyName, p.endUser?.retailerName, p.endUser?.department,
       p.endUser?.contact, p.endUser?.address, p.endUser?.needsAndIssues,
+      p.logs?.map(log => {
+        const next = [log.nextAction, log.nextDate].filter(Boolean).join(' / ');
+        return `${log.date || ''} ${log.content || ''}${next ? ` (${next})` : ''}`.trim();
+      }).join('\n') ?? '',
       p.financial?.expectedRevenue ?? '', p.financial?.wholesalePriceSetup ?? '', p.financial?.retailPrice ?? '',
       (p.financial?.expectedRevenue || 0) - (p.financial?.wholesalePriceSetup || 0),
       p.picSetup, p.summary,
@@ -66,7 +70,7 @@ const KpiView = ({ projects, onSelectProject }) => {
   const winRate = (active.length + lost.length) > 0
     ? ((won.length / (won.length + lost.length)) * 100 || 0).toFixed(1)
     : '0.0';
-  // 累積利益額 = 受注済案件の (想定売上 − セットアップ卸価格)
+  // 累積利益額 = 受注済案件の (想定売上 − SOMPOケアソリューションズ卸価格)
   const cumulativeProfit = won.reduce((s, p) => {
     const rev = p.financial?.expectedRevenue || 0;
     const cost = p.financial?.wholesalePriceSetup || 0;
@@ -104,16 +108,6 @@ const KpiView = ({ projects, onSelectProject }) => {
   const phaseIdx = (ph) => PHASES.indexOf(ph);
   const reachedPhase = (p, ph) => phaseIdx(p.status) >= phaseIdx(ph);
   const kpiTargets = [
-    {
-      key: 'approach',
-      label: '提案・声掛け数',
-      sub: '全アプローチ案件',
-      target: 1000,
-      filter: (p) => true,
-      color: 'sky',
-      icon: MessageSquare,
-      description: 'これまでに声掛け・提案を行ったすべての案件です。',
-    },
     {
       key: 'hearing',
       label: 'ヒアリングシート回収',
@@ -171,14 +165,15 @@ const KpiView = ({ projects, onSelectProject }) => {
 
   return (
     <div className="space-y-8">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <header className="mobile-page-hero mb-6 sm:mb-10 flex flex-wrap items-end justify-between gap-6 rounded-[28px] border border-[#e4e4df] bg-white/80 px-6 py-8 sm:px-10 sm:py-12">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">ケアマックス KPI</h1>
-          <p className="text-gray-500 text-sm mt-2">全社の営業パフォーマンス指標</p>
+          <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.2em] text-gray-400">Performance overview</p>
+          <h1 className="text-4xl font-black text-black tracking-[-0.045em] sm:text-6xl">ケアマックス KPI</h1>
+          <p className="text-gray-500 text-sm mt-4">全社の営業パフォーマンス指標</p>
         </div>
         <button
           onClick={handleExportCsv}
-          className="px-5 py-2.5 bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-full text-sm font-bold flex items-center shadow-md hover:shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all"
+          className="px-5 py-2.5 bg-black text-white rounded-full text-sm font-bold flex items-center hover:bg-gray-800 transition-all"
         >
           <Download className="w-4 h-4 mr-2" />
           案件詳細をCSV出力
@@ -187,15 +182,15 @@ const KpiView = ({ projects, onSelectProject }) => {
       </header>
 
       {/* ケアマックス KPI 目標 */}
-      <Card className="p-6 bg-gradient-to-br from-white to-purple-50/30">
+      <Card className="p-6 sm:p-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <div className="w-1 h-5 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full" />
+            <div className="w-1 h-5 bg-black rounded-full" />
             年間 KPI 目標 <span className="text-xs font-bold text-gray-400 ml-1">／ 達成状況</span>
           </h2>
           <span className="text-xs font-bold text-gray-400 bg-white px-3 py-1 rounded-full border border-gray-200">{new Date().getFullYear()}年度</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {kpiTargets.map((k, i) => {
             const c = colorMap[k.color];
             const pct = Math.min(100, (k.actual / k.target) * 100);
@@ -329,9 +324,9 @@ const KpiView = ({ projects, onSelectProject }) => {
           <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center"><PieChart className="w-5 h-5 mr-2 text-sky-600" />販売パターン別 想定売上</h2>
           <div className="space-y-4">
             {[
-              { label: 'パターン1 (完全卸し)', value: p1, color: 'bg-sky-500' },
-              { label: 'パターン2 (分離)', value: p2, color: 'bg-yellow-500' },
-              { label: 'パターン3 (紹介)', value: p3, color: 'bg-green-500' },
+              { label: '①完全卸し', value: p1, color: 'bg-sky-500' },
+              { label: '②分離', value: p2, color: 'bg-yellow-500' },
+              { label: '③完全紹介', value: p3, color: 'bg-green-500' },
             ].map(row => (
               <div key={row.label}>
                 <div className="flex justify-between text-sm mb-1.5">

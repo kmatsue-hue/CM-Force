@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Building,
   Calendar,
-  CheckCircle2,
   ChevronRight,
   Edit,
   FileText,
@@ -19,11 +18,17 @@ import {
   KAIENTAI_SUB,
   MARGIN_BRANCH_PHASE,
   MARGIN_MERGE_PHASE,
+  WEB_MEETING_PHASE,
+  WEB_MEETING_LOG_TYPE,
   isBranchablePattern,
   isMarginBranchablePattern,
   getMarginSteps,
 } from '../data/phases.js';
+import { FACILITY_TYPE_OPTIONS, getFacilityTypeMeta, normalizeFacilityType } from '../data/facilityTypes.js';
+import { PREFECTURE_OPTIONS, getProjectPrefecture, normalizePrefecture } from '../data/prefectures.js';
 import { formatJPYShort } from '../utils/format.js';
+import { formatSalesPattern, formatSalesPatternText } from '../utils/salesPattern.js';
+import { ROLES } from '../data/roles.js';
 import { validatePhaseAdvance } from '../data/phaseValidators.js';
 import Card from '../ui/Card.jsx';
 import Badge from '../ui/Badge.jsx';
@@ -31,6 +36,8 @@ import RankBadge from '../ui/RankBadge.jsx';
 import ArrowDiagram from '../ui/ArrowDiagram.jsx';
 import PhaseDetailPanel from '../ui/PhaseDetailPanel.jsx';
 import { AssistTip } from '../ui/AssistMode.jsx';
+import ProjectName from '../ui/ProjectName.jsx';
+import { stripProjectHonorific } from '../utils/projectName.js';
 
 const TAB_HINTS = {
   endUser: 'エンドユーザー（導入先施設）情報。\n企業名・担当者名・連絡先・販売店を確認。\n編集は右上の「編集」ボタンから一括で行えます。',
@@ -41,28 +48,131 @@ const TAB_HINTS = {
 // 各データ項目の説明
 const FIELD_HINTS = {
   '企業・施設名':  '導入先（エンドユーザー）の正式名称。\n社内システム検索のキーになるので正確に入れてください。',
+  '都道府県':      '導入先施設が所在する都道府県。\n案件一覧の詳細ビューで地域を素早く確認できます。',
+  '施設業態':      '導入先施設の業態区分。\n特養・老健・有料・グループホームなどを選択して、案件一覧でも見分けやすくします。',
   '担当者名':      '先方の窓口担当者名。\n例: 施設長 山田様、事務長 佐藤、IT担当 鈴木 など。',
   '連絡先':        '電話番号またはメールアドレス。\n緊急時の連絡先として使うので最新の値に保ちましょう。',
   '販売店':        '介在する販売店・代理店名。\n直販なら「直販」と入れます。',
-  'セットアップ担当者': '社内のセットアップ責任者。\n担当者管理タブで登録された人を割り当てます。',
+  'SOMPOケアソリューションズ担当者': 'SOMPOケアソリューションズ側の責任者。\n担当者管理タブで登録された人を割り当てます。',
   'ケアマックス担当者': 'ケアマックス社内の窓口担当者。\n営業企画・KPI管理側のキーパーソンを指名します。',
   '案件ランク':    'A=確度高 / B=確度中 / C=確度低。\n月次レビューや優先順位付けの軸になります。',
   '開始日':        '案件着手日。\nダッシュボードのソート・KPI 集計に使用。',
   'クローズ予定':  '受注見込み日。\nリードタイムの目安として活用、月次予測にも反映されます。',
   '卸値':          'ケアマックスへの仕入れ値（税抜）。\n粗利計算に使用します。',
-  '紹介料':        '紹介スキーム時の紹介料率(%) と金額。\nパターン3（完全紹介）案件で入力します。',
+  '紹介料':        '紹介スキーム時の紹介料率(%) と金額。\n③完全紹介の案件で入力します。',
   'ニーズ・課題':  'エンドユーザーが解決したい課題や要望。\n提案書のストーリーラインの基礎になるので具体的に。',
   '想定全体売上':  'この案件で得られる想定売上総額（税抜）。\nダッシュボードのパイプライン金額に反映されます。',
 };
 
+const withRevenueBreakdown = (project) => {
+  const financial = project.financial || {};
+  const hasBreakdown = financial.equipmentRevenue != null || financial.constructionRevenue != null;
+  const equipmentRevenue = hasBreakdown
+    ? Number(financial.equipmentRevenue) || 0
+    : Number(financial.expectedRevenue) || 0;
+  const constructionRevenue = Number(financial.constructionRevenue) || 0;
+
+  return {
+    ...project,
+    financial: {
+      ...financial,
+      equipmentRevenue,
+      constructionRevenue,
+      marginPaymentExpectedAmount: Number(financial.marginPaymentExpectedAmount) || 0,
+      expectedRevenue: equipmentRevenue + constructionRevenue,
+    },
+  };
+};
+
+const prepareProjectForEdit = (project, staff = []) => {
+  const normalized = withRevenueBreakdown(project);
+  const assigned = staff.find(member =>
+    member.staffNumber === normalized.picCaremaxStaffNumber
+    || member.name === normalized.picCaremax
+  );
+  if (!assigned) {
+    return {
+      ...normalized,
+      name: stripProjectHonorific(normalized.name),
+      endUser: {
+        ...(normalized.endUser || {}),
+        prefecture: getProjectPrefecture(normalized),
+      },
+      facilityType: normalizeFacilityType(normalized.facilityType),
+      hasIctHearingSheet: Boolean(normalized.hasIctHearingSheet),
+    };
+  }
+  return {
+    ...normalized,
+    name: stripProjectHonorific(normalized.name),
+    endUser: {
+      ...(normalized.endUser || {}),
+      prefecture: getProjectPrefecture(normalized),
+    },
+    picCaremax: assigned.name,
+    picCaremaxStaffNumber: assigned.staffNumber,
+    facilityType: normalizeFacilityType(normalized.facilityType),
+    hasIctHearingSheet: Boolean(normalized.hasIctHearingSheet),
+  };
+};
+
+const LOG_ACTOR_PATTERN = /[（(]\s*(変更者|実行者)\s*[:：]\s*([^）)]+)\s*[）)]/;
+const replaceLegacySetupName = (value = '') =>
+  String(value).replaceAll('セットアップ', 'SOMPOケアソリューションズ');
+
+const inferLogPhase = (content = '') => {
+  const phaseMatch = content.match(/(?:フェーズ進捗|フェーズ分岐):.*?「([^」]+)」/)
+    || content.match(/サブフロー「([^」]+)」/);
+  return phaseMatch?.[1] || '';
+};
+
+const getLogPresentation = (log) => {
+  const actorMatch = (log.content || '').match(LOG_ACTOR_PATTERN);
+  const isWebMeetingRequest = log.type === WEB_MEETING_LOG_TYPE;
+  return {
+    actor: log.actor || actorMatch?.[2]?.trim() || '',
+    actorRole: log.actorRole || actorMatch?.[1] || '',
+    content: isWebMeetingRequest
+      ? (log.requestContent || log.content || '').trim()
+      : formatSalesPatternText(replaceLegacySetupName((log.content || '').replace(LOG_ACTOR_PATTERN, '').trim())),
+    phase: log.phase || log.phaseName || inferLogPhase(log.content) || 'フェーズ未記録',
+  };
+};
+
+const PHASE_CIRCLE_LABELS = {
+  '案件発掘': '案件\n発掘',
+  '案件スクリーニング': 'スクリー\nニング',
+  [WEB_MEETING_PHASE]: 'WEB\n面談',
+  'EUとの商談': 'EU\n商談',
+  '現地調査': '現地\n調査',
+  '提案書／見積書提出': '提案／\n見積提出',
+  '販売契約締結': '販売契約\n締結',
+  '施工・納品': '施工／\n納品',
+  '一次保守': '一次\n保守',
+  '介援隊：見積書提出': '介援隊\n見積提出',
+  '介援隊：納品': '介援隊\n納品',
+  'マージン支払': 'マージン\n支払',
+  '販売店へ支払': '販売店\n支払',
+  'フェーズ未記録': 'フェーズ\n未記録',
+};
+
+const getPhaseProgress = (phase) => {
+  const phaseIndex = PHASES.indexOf(phase);
+  if (phaseIndex >= 0) return ((phaseIndex + 1) / PHASES.length) * 100;
+  if (phase?.startsWith('介援隊')) return 72;
+  if (phase === 'マージン支払' || phase === '販売店へ支払') return 94;
+  return 0;
+};
+
 // --- 案件詳細 ---
-const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canEdit = true }) => {
+const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canEdit = true, currentRole = ROLES.KIKAKU, staff = [] }) => {
   const [selectedPhase, setSelectedPhase] = useState(project.status);
   const [infoTab, setInfoTab] = useState('endUser'); // 'endUser' | 'project' | 'log'
   const [isEditingInfo, setIsEditingInfo] = useState(false);
-  const [editInfo, setEditInfo] = useState({ ...project });
+  const [editInfo, setEditInfo] = useState(() => prepareProjectForEdit(project, staff));
   const [newLog, setNewLog] = useState({ content: '', nextAction: '', nextDate: '' });
   const [isAddingLog, setIsAddingLog] = useState(false);
+  const [logPhaseFilter, setLogPhaseFilter] = useState('all');
   const [showLostConfirm, setShowLostConfirm] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [lostForm, setLostForm] = useState({ reason: '', competitor: '' });
@@ -82,8 +192,35 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
   const isReadOnly = isLost || !canEdit;
 
   const kaientaiFlow = project.kaientaiFlow || { active: false, sub: 0 };
-  const marginFlow   = project.marginFlow   || { active: false, sub: 0 };
   const marginSteps  = getMarginSteps(project.salesPattern);
+  const storedMarginFlow = project.marginFlow || { active: false, sub: 0 };
+  // 旧仕様でパターン①が「販売店へ支払」まで進んでいた場合も、新しい1段階フローへ安全に寄せる。
+  const marginFlow = {
+    ...storedMarginFlow,
+    sub: Math.min(Number(storedMarginFlow.sub) || 0, Math.max(0, marginSteps.length - 1)),
+  };
+  const isPatternOne = project.salesPattern?.includes('パターン1');
+  const canViewMarginProfit = currentRole !== ROLES.SETUP;
+  const marginFlowDisplayName = isPatternOne ? '利益計上サブフロー' : 'マージン支払サブフロー';
+  const caremaxSalesStaff = staff.filter(member => member.department === ROLES.EIGYO);
+  const logEntries = (project.logs || []).map(log => ({
+    log,
+    view: getLogPresentation(log),
+  }));
+  const logPhaseCounts = logEntries.reduce((counts, entry) => {
+    counts.set(entry.view.phase, (counts.get(entry.view.phase) || 0) + 1);
+    return counts;
+  }, new Map());
+  const preferredLogPhaseOrder = [...PHASES, ...KAIENTAI_SUB, ...marginSteps];
+  const logPhaseOptions = [
+    ...preferredLogPhaseOrder.filter((phase, index) =>
+      logPhaseCounts.has(phase) && preferredLogPhaseOrder.indexOf(phase) === index
+    ),
+    ...[...logPhaseCounts.keys()].filter(phase => !preferredLogPhaseOrder.includes(phase)),
+  ];
+  const filteredLogEntries = logPhaseFilter === 'all'
+    ? logEntries
+    : logEntries.filter(entry => entry.view.phase === logPhaseFilter);
   // 表示・操作上の "現在フェーズ"
   const effectivePhase = kaientaiFlow.active
     ? KAIENTAI_SUB[kaientaiFlow.sub]
@@ -124,9 +261,13 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
 
   React.useEffect(() => {
     setSelectedPhase(effectivePhase);
-    setEditInfo({ ...project });
+    setEditInfo(prepareProjectForEdit(project, staff));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
+
+  React.useEffect(() => {
+    setLogPhaseFilter('all');
+  }, [project.id]);
 
   const handleUpdatePhaseData = (phaseName, newPhaseData) => {
     onUpdateProject({
@@ -139,12 +280,17 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
   // フェーズ進捗 変更ログを先頭追記するヘルパ
   const prependPhaseLog = (content) => {
     const now = new Date();
+    const actorMatch = content.match(LOG_ACTOR_PATTERN);
     return [
       {
         id: now.getTime(),
         date: now.toISOString().split('T')[0],
         type: 'activity',
-        content,
+        source: 'system',
+        content: content.replace(LOG_ACTOR_PATTERN, '').trim(),
+        phase: inferLogPhase(content) || effectivePhase,
+        actor: actorMatch?.[2]?.trim() || '',
+        actorRole: actorMatch?.[1] || '',
         nextAction: '',
         nextDate: '',
       },
@@ -360,7 +506,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
         ...project,
         marginFlow: { active: true, sub: 0 },
         logs: prependPhaseLog(
-          `フェーズ分岐: 「${MARGIN_BRANCH_PHASE}」 からマージン支払サブフローを開始しました${name ? `（実行者: ${name}）` : ''}`
+          `フェーズ分岐: 「${MARGIN_BRANCH_PHASE}」 から${isPatternOne ? '利益計上' : 'マージン支払'}サブフローを開始しました${name ? `（実行者: ${name}）` : ''}`
         ),
         updatedAt: now,
       });
@@ -373,12 +519,12 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
     setShowBranchModal(false);
     setBranchSelectByName('');
     if (branch === 'setup') {
-      // セットアップ → 通常通り「販売契約締結」へ
+      // SOMPOケアソリューションズ → 通常通り「販売契約締結」へ
       onUpdateProject({
         ...project,
         status: '販売契約締結',
         logs: prependPhaseLog(
-          `フェーズ分岐: 「${BRANCH_PHASE}」 から 「販売契約締結」 へ進めました（セットアップフロー選択）${name ? `（実行者: ${name}）` : ''}`
+          `フェーズ分岐: 「${BRANCH_PHASE}」 から 「販売契約締結」 へ進めました（SOMPOケアソリューションズフロー選択）${name ? `（実行者: ${name}）` : ''}`
         ),
         updatedAt: now,
       });
@@ -396,15 +542,36 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
   };
 
   const handleSaveInfo = () => {
+    const sanitizedEditInfo = {
+      ...editInfo,
+      name: stripProjectHonorific(editInfo.name),
+      endUser: {
+        ...(editInfo.endUser || {}),
+        prefecture: normalizePrefecture(editInfo.endUser?.prefecture),
+      },
+    };
     // 販売スキームが変更されていれば、変更者名の入力ダイアログを挟む
-    if (editInfo.salesPattern !== project.salesPattern) {
-      setPendingEditInfo({ ...editInfo });
+    if (sanitizedEditInfo.salesPattern !== project.salesPattern) {
+      setPendingEditInfo({ ...sanitizedEditInfo });
       setPatternChangedByName('');
       setShowPatternChangeConfirm(true);
       return;
     }
-    onUpdateProject({ ...editInfo, updatedAt: new Date().toISOString() });
+    onUpdateProject({ ...sanitizedEditInfo, updatedAt: new Date().toISOString() });
     setIsEditingInfo(false);
+  };
+
+  const handleRevenueFieldChange = (field, value) => {
+    setEditInfo(current => {
+      const financial = {
+        ...current.financial,
+        [field]: Number(value) || 0,
+      };
+      financial.expectedRevenue =
+        (Number(financial.equipmentRevenue) || 0) +
+        (Number(financial.constructionRevenue) || 0);
+      return { ...current, financial };
+    });
   };
 
   // パターン変更確認 → 確定: 活動ログに自動記載してから保存
@@ -417,7 +584,11 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
       id: now.getTime(),
       date: todayStr,
       type: 'activity',
-      content: `販売スキームを「${project.salesPattern}」から「${pendingEditInfo.salesPattern}」に変更しました。（変更者: ${name}）`,
+      source: 'system',
+      content: `販売スキームを「${formatSalesPattern(project.salesPattern)}」から「${formatSalesPattern(pendingEditInfo.salesPattern)}」に変更しました。`,
+      phase: effectivePhase,
+      actor: name,
+      actorRole: '変更者',
       nextAction: '',
       nextDate: '',
     };
@@ -438,7 +609,11 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
       id: Date.now(),
       date: new Date().toISOString().split('T')[0],
       type: 'activity',
+      source: 'manual',
+      questRewardStaffNumber: project.picCaremaxStaffNumber || '',
+      questRewardUserName: project.picCaremax || '',
       content: newLog.content,
+      phase: effectivePhase,
       nextAction: newLog.nextAction,
       nextDate: newLog.nextDate
     };
@@ -474,6 +649,10 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
   const patternColor = project.salesPattern?.includes('パターン1') ? 'sky' :
     project.salesPattern?.includes('パターン2') ? 'yellow' :
     project.salesPattern?.includes('パターン3') ? 'green' : 'gray';
+  const facilityMeta = getFacilityTypeMeta(project.facilityType);
+  const caremaxSalesName = project.picCaremax
+    || staff.find(member => member.staffNumber === project.picCaremaxStaffNumber)?.name
+    || '';
 
   return (
     <div className="space-y-5 sm:space-y-8">
@@ -487,31 +666,61 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Dashboard に戻る
           </button>
         </AssistTip>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="project-hero flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 rounded-[28px] border border-[#e4e4df] bg-white/80 px-5 py-7 sm:px-8 sm:py-10">
           <div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <AssistTip text={"販売スキーム。\nパターン1=完全卸し / パターン2=分離 / パターン3=完全紹介。\n編集ボタンから変更できます。"} side="bottom">
-                <Badge color={patternColor}>{project.salesPattern}</Badge>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {facilityMeta.label && (
+                <span
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200/80 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm shadow-slate-200/40"
+                  title={`施設業態: ${facilityMeta.label}`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${facilityMeta.markerClassName}`}
+                    aria-hidden="true"
+                  />
+                  {facilityMeta.label}
+                </span>
+              )}
+              <AssistTip text={"案件名。\n編集ボタンから変更可。社内検索のキーになるので分かりやすい命名を推奨。"} side="bottom">
+                <h1 className="text-2xl sm:text-4xl font-black text-black tracking-[-0.04em] leading-tight">
+                  <ProjectName name={project.name} honorificClassName="text-gray-400" />
+                </h1>
               </AssistTip>
+              {project.hasIctHearingSheet && (
+                <span
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-500 ring-1 ring-inset ring-amber-200"
+                  title="ICTヒアリングシート回収済み"
+                  aria-label="ICTヒアリングシート回収済み"
+                >
+                  <FileText className="h-4 w-4" strokeWidth={1.8} />
+                </span>
+              )}
               {isLost && (
                 <AssistTip text={"失注済み案件。\n進行操作は無効化されます。「案件を復活させる」ボタンで戻せます。"} side="bottom">
                   <Badge color="red">LOST</Badge>
                 </AssistTip>
               )}
+            </div>
+            {caremaxSalesName && (
+              <div className="mt-2 text-xs font-medium text-slate-400 sm:text-sm">
+                担当者：<span className="font-semibold text-slate-600">{caremaxSalesName}</span>
+              </div>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <AssistTip text={"販売スキーム。\n①=完全卸し / ②=分離 / ③=完全紹介。\n編集ボタンから変更できます。"} side="bottom">
+                <Badge color={patternColor}>{formatSalesPattern(project.salesPattern)}</Badge>
+              </AssistTip>
               <AssistTip text={"案件ID（自動採番）。\n社内連絡や請求書の参照番号として使用できます。"} side="bottom">
                 <span className="text-xs font-mono text-gray-400">{project.id}</span>
               </AssistTip>
             </div>
-            <AssistTip text={"案件名。\n編集ボタンから変更可。社内検索のキーになるので分かりやすい命名を推奨。"} side="bottom">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight leading-tight">{project.name}</h1>
-            </AssistTip>
             {project.summary && (
               <AssistTip text={"案件の要約。\n背景・狙い・特記事項などを1〜2文で。営業メンバー間の引き継ぎに有効。"} side="bottom">
-                <p className="text-sm text-gray-500 mt-1.5">{project.summary}</p>
+                <p className="text-sm text-gray-500 mt-4 max-w-3xl leading-6">{project.summary}</p>
               </AssistTip>
             )}
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
             {!canEdit && (
               <AssistTip text={"営業部ロールは閲覧モードです。\n編集・新規追加・削除・フェーズ進行などの書き込み操作は無効化されています。"} side="bottom">
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-3 py-1.5">
@@ -522,7 +731,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
             {canEdit && (
               <AssistTip text={"案件の基本情報を編集します。\n企業名・担当者・金額・スキーム等をモーダルで一括編集可。"} side="bottom">
                 <button
-                  onClick={() => { setEditInfo({ ...project }); setIsEditingInfo(true); }}
+                  onClick={() => { setEditInfo(prepareProjectForEdit(project, staff)); setIsEditingInfo(true); }}
                   className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm flex items-center"
                 >
                   <Edit className="w-4 h-4 mr-1.5" /> 編集
@@ -567,9 +776,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
         {/* タブヘッダー */}
         <div className="flex border-b border-gray-100 bg-gray-50/50">
           {[
-            { key: 'endUser', label: 'エンドユーザー情報', icon: Building,      color: 'text-purple-600 border-purple-500' },
-            { key: 'project', label: '案件情報',           icon: FileText,      color: 'text-emerald-600 border-emerald-500' },
-            { key: 'log',     label: '活動ログ',           icon: MessageSquare, color: 'text-orange-600 border-orange-500', badge: project.logs.length },
+            { key: 'endUser', label: 'エンドユーザー情報', mobileLabel: '顧客情報', icon: Building,      color: 'text-purple-600 border-purple-500' },
+            { key: 'project', label: '案件情報',           mobileLabel: '案件情報', icon: FileText,      color: 'text-emerald-600 border-emerald-500' },
+            { key: 'log',     label: '活動ログ',           mobileLabel: '活動ログ', icon: MessageSquare, color: 'text-orange-600 border-orange-500', badge: project.logs.length },
           ].map(tab => {
             const TabIcon = tab.icon;
             const active = infoTab === tab.key;
@@ -584,25 +793,45 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                   }`}
                 >
                   <TabIcon className="w-4 h-4" />
-                  {tab.label}
+                  <span className="sm:hidden">{tab.mobileLabel}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                   {tab.badge != null && tab.badge > 0 && (
                     <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${active ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{tab.badge}</span>
                   )}
                 </button>
               </AssistTip>
-            );
-          })}
+              );
+            })}
+          {infoTab === 'log' && (
+            <div className="hidden shrink-0 items-center border-l border-gray-100 bg-white px-3 sm:flex">
+              <select
+                value={logPhaseFilter}
+                onChange={event => setLogPhaseFilter(event.target.value)}
+                className="max-w-[190px] rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                aria-label="活動ログをフェーズで絞り込む"
+              >
+                <option value="all">すべてのフェーズ（{logEntries.length}）</option>
+                {logPhaseOptions.map(phase => (
+                  <option key={phase} value={phase}>
+                    {phase}（{logPhaseCounts.get(phase)}）
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* タブ内容 */}
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           {infoTab === 'endUser' && (
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-              {[
-                ['企業・施設名', project.endUser.companyName, true],
-                ['担当者名', project.endUser.department],
-                ['連絡先', project.endUser.contact],
-                ['販売店', project.endUser.retailerName],
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                {[
+                  ['企業・施設名', project.endUser.companyName, true],
+                  ['都道府県', getProjectPrefecture(project)],
+                  ['施設業態', project.facilityType],
+                  ['担当者名', project.endUser.department],
+                  ['連絡先', project.endUser.contact],
+                  ['販売店', project.endUser.retailerName],
               ].map(([label, value, bold]) => (
                 <div key={label} className="grid grid-cols-[100px_1fr] gap-2 items-baseline">
                   <AssistTip text={FIELD_HINTS[label] || label} side="right">
@@ -627,8 +856,8 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
               {/* 案件情報 + 財務情報 をフラットに */}
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
                 <div className="grid grid-cols-[140px_1fr] gap-2">
-                  <AssistTip text={FIELD_HINTS['セットアップ担当者']} side="right">
-                    <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">セットアップ担当者</dt>
+                  <AssistTip text={FIELD_HINTS['SOMPOケアソリューションズ担当者']} side="right">
+                    <dt className="text-xs text-gray-400 font-semibold pt-0.5 cursor-help">SOMPOケアソリューションズ担当者</dt>
                   </AssistTip>
                   <dd className="text-sm">
                     <span className="font-bold text-gray-900">{project.picSetup || <span className="text-gray-300 font-medium">—</span>}</span>
@@ -645,6 +874,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                   </AssistTip>
                   <dd className="text-sm">
                     <span className="font-bold text-gray-900">{project.picCaremax || <span className="text-gray-300 font-medium">—</span>}</span>
+                    {project.picCaremaxStaffNumber && (
+                      <span className="block mt-1 font-mono text-[10px] font-bold text-purple-600">{project.picCaremaxStaffNumber}</span>
+                    )}
                   </dd>
                 </div>
                 <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
@@ -694,35 +926,88 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
           )}
 
           {infoTab === 'log' && (
-            <div className="overflow-y-auto pr-1 -mr-1 space-y-4" style={{ maxHeight: '420px' }}>
-              {project.logs.map(log => (
-                <div key={log.id} className={`flex gap-3 ${log.type === 'alert' ? 'bg-red-50/60 p-3 rounded-lg border border-red-100' : ''}`}>
-                  <div className="flex-shrink-0 mt-0.5">
-                    {log.type === 'alert'
-                      ? <AlertCircle className="w-5 h-5 text-red-600" />
-                      : <div className="w-7 h-7 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-purple-600" /></div>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-gray-500 tabular-nums">{log.date}</p>
-                    <p className="text-sm text-gray-800 font-medium leading-relaxed mt-1 break-words">{log.content}</p>
-                    {log.nextAction && (
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="bg-purple-50 px-2.5 py-1 rounded-full text-purple-700 font-bold border border-purple-100 inline-flex items-center">
-                          <ChevronRight className="w-3 h-3 mr-1" />{log.nextAction}
-                        </span>
-                        {log.nextDate && (
-                          <span className="bg-gray-50 px-2.5 py-1 rounded-full text-gray-600 font-semibold border border-gray-100 inline-flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" />{log.nextDate}
-                          </span>
-                        )}
+            <div>
+              <div className="mb-3 flex justify-end sm:hidden">
+                <select
+                  value={logPhaseFilter}
+                  onChange={event => setLogPhaseFilter(event.target.value)}
+                  className="w-full rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  aria-label="活動ログをフェーズで絞り込む"
+                >
+                  <option value="all">すべてのフェーズ（{logEntries.length}）</option>
+                  {logPhaseOptions.map(phase => (
+                    <option key={phase} value={phase}>
+                      {phase}（{logPhaseCounts.get(phase)}）
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="overflow-y-auto pr-1 -mr-1 divide-y divide-gray-100" style={{ maxHeight: '420px' }}>
+              {filteredLogEntries.map(({ log, view }) => {
+                const isAlert = log.type === 'alert';
+                const isWebMeetingRequest = log.type === WEB_MEETING_LOG_TYPE;
+                const phaseProgress = getPhaseProgress(view.phase);
+                return (
+                  <div
+                    key={log.id}
+                    className={`group flex gap-3 px-2 py-4 transition-colors hover:bg-gray-50/80 ${isAlert ? 'bg-red-50/40' : isWebMeetingRequest ? 'bg-sky-50/50' : ''}`}
+                  >
+                    <div
+                      className={`mt-0.5 h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0 rounded-full p-[2px] shadow-[0_4px_14px_rgba(0,0,0,0.08)] ${
+                        isAlert ? 'bg-red-200' : ''
+                      }`}
+                      style={!isAlert ? {
+                        background: `conic-gradient(from -45deg, #5b21b6 0%, #8b5cf6 ${phaseProgress * 0.65}%, #c084fc ${phaseProgress}%, #ebe7f1 ${phaseProgress}% 100%)`,
+                      } : undefined}
+                      title={view.phase}
+                    >
+                      <div className={`flex h-full w-full items-center justify-center rounded-full border-2 border-white text-center text-[9px] font-black leading-[1.1] whitespace-pre-line ${
+                        isAlert
+                          ? 'bg-red-50 text-red-600'
+                          : 'bg-gradient-to-br from-white to-purple-50 text-gray-900'
+                      }`}>
+                        {isAlert
+                          ? <AlertCircle className="h-5 w-5" />
+                          : (PHASE_CIRCLE_LABELS[view.phase] || view.phase)}
                       </div>
-                    )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-xs font-bold text-gray-800">
+                          {isWebMeetingRequest
+                            ? 'WEB面談可否 依頼ログ'
+                            : view.actor ? `${view.actorRole || '実行者'}: ${view.actor}` : (isAlert ? 'システムアラート' : '活動ログ')}
+                        </span>
+                        <span className="text-[11px] font-medium text-gray-400 tabular-nums">{log.date}</span>
+                      </div>
+                      {isWebMeetingRequest && (
+                        <p className="mt-1.5 text-xs font-bold text-sky-700">依頼先：{log.requestedTo || '未記入'}</p>
+                      )}
+                      <p className="mt-1.5 whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-gray-800">{view.content}</p>
+                      {log.nextAction && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="inline-flex items-center font-bold text-purple-700">
+                            <ChevronRight className="mr-1 h-3.5 w-3.5" />
+                            次のアクション: {replaceLegacySetupName(log.nextAction)}
+                          </span>
+                          {log.nextDate && (
+                            <span className="inline-flex items-center font-semibold text-gray-500">
+                              <Calendar className="mr-1 h-3.5 w-3.5" />{log.nextDate}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {project.logs.length === 0 && (
+                );
+              })}
+              {logEntries.length === 0 && (
                 <p className="text-sm text-gray-400 text-center py-10 font-medium">活動ログがありません</p>
               )}
+              {logEntries.length > 0 && filteredLogEntries.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-10 font-medium">選択したフェーズの活動ログはありません</p>
+              )}
+              </div>
             </div>
           )}
         </div>
@@ -759,7 +1044,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 </div>
                 {(kaientaiFlow.active || marginFlow.active) && (
                   <div className="mt-2 text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 inline-block px-2 py-0.5 rounded-full">
-                    {kaientaiFlow.active ? '介援隊サブフロー進行中' : 'マージン支払サブフロー進行中'}
+                    {kaientaiFlow.active ? '介援隊サブフロー進行中' : `${marginFlowDisplayName}進行中`}
                   </div>
                 )}
               </>
@@ -824,7 +1109,11 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
               id: Date.now(),
               date: new Date().toISOString().split('T')[0],
               type: 'activity',
+              source: 'manual',
+              questRewardStaffNumber: project.picCaremaxStaffNumber || '',
+              questRewardUserName: project.picCaremax || '',
               content: logData.content,
+              phase: selectedPhase,
               nextAction: logData.nextAction || '',
               nextDate: logData.nextDate || '',
             };
@@ -834,13 +1123,34 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
               updatedAt: new Date().toISOString(),
             });
           }}
+          webMeetingLogs={(project.logs || []).filter(log => log.type === WEB_MEETING_LOG_TYPE)}
+          onAddWebMeetingLog={({ requestedTo, requestContent }) => {
+            const now = new Date();
+            const logEntry = {
+              id: now.getTime(),
+              date: now.toISOString().split('T')[0],
+              type: WEB_MEETING_LOG_TYPE,
+              source: 'webMeeting',
+              phase: WEB_MEETING_PHASE,
+              requestedTo,
+              requestContent,
+              content: requestContent,
+            };
+            onUpdateProject({
+              ...project,
+              logs: [logEntry, ...(project.logs || [])],
+              updatedAt: now.toISOString(),
+            });
+          }}
+          salesPattern={project.salesPattern}
+          canViewMarginProfit={canViewMarginProfit}
         />
       </Card>
 
 
       {/* 編集モーダル */}
       {isEditingInfo && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
+        <div className="mobile-sheet fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900">案件情報の編集</h3>
@@ -862,6 +1172,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">案件名</label>
                 <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   value={editInfo.name} onChange={e => setEditInfo({ ...editInfo, name: e.target.value })} />
+                <p className="mt-1 text-[11px] font-medium text-gray-400">
+                  「様」は案件一覧・詳細画面で自動表示されます
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">概要</label>
@@ -877,9 +1190,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
-                    { v: 'パターン1（完全卸し）', label: 'パターン①', sub: '完全卸し', activeCls: 'bg-sky-600 text-white border-sky-600 shadow', idleCls: 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50' },
-                    { v: 'パターン2（分離）',     label: 'パターン②', sub: '分離',     activeCls: 'bg-yellow-500 text-white border-yellow-500 shadow', idleCls: 'bg-white text-yellow-700 border-yellow-200 hover:bg-yellow-50' },
-                    { v: 'パターン3（完全紹介）', label: 'パターン③', sub: '完全紹介', activeCls: 'bg-green-600 text-white border-green-600 shadow', idleCls: 'bg-white text-green-700 border-green-200 hover:bg-green-50' },
+                    { v: 'パターン1（完全卸し）', label: '①完全卸し', activeCls: 'bg-sky-600 text-white border-sky-600 shadow', idleCls: 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50' },
+                    { v: 'パターン2（分離）',     label: '②分離',     activeCls: 'bg-yellow-500 text-white border-yellow-500 shadow', idleCls: 'bg-white text-yellow-700 border-yellow-200 hover:bg-yellow-50' },
+                    { v: 'パターン3（完全紹介）', label: '③完全紹介', activeCls: 'bg-green-600 text-white border-green-600 shadow', idleCls: 'bg-white text-green-700 border-green-200 hover:bg-green-50' },
                   ].map(p => {
                     const selected = editInfo.salesPattern === p.v;
                     return (
@@ -890,7 +1203,6 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                         className={`px-3 py-2.5 rounded-xl border-2 text-left transition-all ${selected ? p.activeCls : p.idleCls}`}
                       >
                         <div className="text-sm font-extrabold leading-tight">{p.label}</div>
-                        <div className="text-[10px] font-semibold opacity-80 mt-0.5">{p.sub}</div>
                       </button>
                     );
                   })}
@@ -920,22 +1232,61 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">セットアップ担当者</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">SOMPOケアソリューションズ担当者</label>
                   <input type="text" placeholder="例：山田 太郎" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     value={editInfo.picSetup || ''} onChange={e => setEditInfo({ ...editInfo, picSetup: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">ケアマックス担当者</label>
-                  <input type="text" placeholder="例：鈴木 花子" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                    value={editInfo.picCaremax || ''} onChange={e => setEditInfo({ ...editInfo, picCaremax: e.target.value })} />
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">ケアマックス営業担当者（QUESTキャラクター）</label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    value={editInfo.picCaremaxStaffNumber || ''}
+                    onChange={e => {
+                      const assigned = caremaxSalesStaff.find(member => member.staffNumber === e.target.value);
+                      setEditInfo({
+                        ...editInfo,
+                        picCaremaxStaffNumber: assigned?.staffNumber || '',
+                        picCaremax: assigned?.name || '',
+                      });
+                    }}
+                  >
+                    <option value="">未割当</option>
+                    {caremaxSalesStaff.map(member => (
+                      <option key={member.staffNumber} value={member.staffNumber}>
+                        {member.staffNumber}｜{member.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">セットアップ担当者 連絡先 <span className="ml-1 text-xs font-normal text-gray-400">（電話番号・メールなど）</span></label>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">SOMPOケアソリューションズ担当者 連絡先 <span className="ml-1 text-xs font-normal text-gray-400">（電話番号・メールなど）</span></label>
                 <input type="text" placeholder="例：090-1234-5678 / yamada@example.com" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   value={editInfo.picSetupContact || ''} onChange={e => setEditInfo({ ...editInfo, picSetupContact: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">ICTヒアリングシート</label>
+                <div className="grid grid-cols-2 gap-2 max-w-sm">
+                  {[
+                    { value: true, label: 'あり', active: 'bg-purple-600 text-white border-purple-600 shadow', idle: 'bg-white text-purple-700 border-purple-200 hover:bg-purple-50' },
+                    { value: false, label: 'なし', active: 'bg-gray-700 text-white border-gray-700 shadow', idle: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' },
+                  ].map(option => {
+                    const selected = Boolean(editInfo.hasIctHearingSheet) === option.value;
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        onClick={() => setEditInfo({ ...editInfo, hasIctHearingSheet: option.value })}
+                        className={`px-3 py-2.5 rounded-xl text-sm font-extrabold border-2 transition-all ${selected ? option.active : option.idle}`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-[10px] font-medium text-gray-400">回収済みの案件は案件一覧で紙アイコン表示・絞り込み対象になります。</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">クローズ予定日</label>
                   <input type="date" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
@@ -945,20 +1296,79 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">想定全体売上</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">¥</span>
-                    <input type="number" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    <input type="number" readOnly className="w-full pl-9 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 cursor-not-allowed"
                       value={editInfo.financial?.expectedRevenue || 0}
-                      onChange={e => setEditInfo({ ...editInfo, financial: { ...editInfo.financial, expectedRevenue: Number(e.target.value) } })} />
+                      aria-label="想定全体売上（機器売上予定額と工事売上予定額の合計）" />
                   </div>
+                  <p className="mt-1 text-[10px] font-medium text-gray-400">機器売上予定額 ＋ 工事売上予定額（自動計算）</p>
                 </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { key: 'equipmentRevenue', label: '機器売上予定額' },
+                  { key: 'constructionRevenue', label: '工事売上予定額' },
+                  ...(
+                    isPatternOne && !canViewMarginProfit
+                      ? []
+                      : [{
+                        key: 'marginPaymentExpectedAmount',
+                        label: isPatternOne ? '当社上乗せ利益予定額' : 'マージン支払予定額',
+                      }]
+                  ),
+                ].map(({ key, label }) => (
+                  <div key={key}>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">{label}</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">¥</span>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        value={editInfo.financial?.[key] || 0}
+                        onChange={e => handleRevenueFieldChange(key, e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="border-t border-gray-100 pt-4">
                 <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">エンドユーザー情報</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">企業・施設名</label>
                     <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                       value={editInfo.endUser?.companyName || ''}
                       onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, companyName: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">都道府県</label>
+                    <select
+                      value={editInfo.endUser?.prefecture || ''}
+                      onChange={e => setEditInfo({ ...editInfo, endUser: { ...editInfo.endUser, prefecture: e.target.value } })}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="">都道府県を選択してください</option>
+                      {PREFECTURE_OPTIONS.map(prefecture => (
+                        <option key={prefecture} value={prefecture}>
+                          {prefecture}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">施設業態</label>
+                    <select
+                      value={editInfo.facilityType || ''}
+                      onChange={e => setEditInfo({ ...editInfo, facilityType: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="">業態を選択してください</option>
+                      {FACILITY_TYPE_OPTIONS.map(option => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">担当者名</label>
@@ -1070,7 +1480,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-purple-600 bg-purple-50 border border-purple-200">通常</span>
                 </div>
                 <p className="text-sm font-bold text-gray-900">そのまま「一次保守」へ</p>
-                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">マージン処理を行わずに次フェーズへ進みます。</p>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                  {isPatternOne ? '上乗せ利益を記録せずに次フェーズへ進みます。' : 'マージン処理を行わずに次フェーズへ進みます。'}
+                </p>
               </button>
               <button
                 onClick={() => { if (branchSelectByName.trim()) handleSelectMarginBranch('margin', branchSelectByName.trim()); }}
@@ -1078,11 +1490,15 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/40 transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">マージン</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">
+                    {isPatternOne ? '利益' : 'マージン'}
+                  </span>
                 </div>
-                <p className="text-sm font-bold text-gray-900">マージン支払サブフロー</p>
+                <p className="text-sm font-bold text-gray-900">{marginFlowDisplayName}</p>
                 <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-                  {marginSteps.length === 1
+                  {isPatternOne
+                    ? '当社が販売価格へ上乗せした利益額と利益確定日を記録し、その後「一次保守」に合流します。'
+                    : marginSteps.length === 1
                     ? '「マージン支払」をゴールとし、その後「一次保守」に合流します。'
                     : '「マージン支払 → 販売店へ支払」を経由して「一次保守」に合流します。'}
                 </p>
@@ -1129,7 +1545,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 className="text-left p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50/40 transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">セットアップ</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider text-orange-600 bg-orange-50 border border-orange-200">SOMPOケアソリューションズ</span>
                 </div>
                 <p className="text-sm font-bold text-gray-900">通常フロー</p>
                 <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">そのまま「販売契約締結 → 施工・納品 → 一次保守」へ進みます。</p>
@@ -1199,11 +1615,11 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
               <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-400 font-semibold">変更前</span>
-                  <span className="font-bold text-gray-700">{project.salesPattern}</span>
+                  <span className="font-bold text-gray-700">{formatSalesPattern(project.salesPattern)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-400 font-semibold">変更後</span>
-                  <span className="font-extrabold text-amber-700">{pendingEditInfo.salesPattern}</span>
+                  <span className="font-extrabold text-amber-700">{formatSalesPattern(pendingEditInfo.salesPattern)}</span>
                 </div>
               </div>
               <label className="block">
@@ -1263,7 +1679,9 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
               </p>
               <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
                 <div className="text-[11px] text-gray-400 font-semibold">{project.id}</div>
-                <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{project.name}</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">
+                  <ProjectName name={project.name} />
+                </div>
                 <div className="text-xs text-gray-500 mt-0.5">{project.endUser?.companyName}</div>
               </div>
               <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside leading-relaxed">

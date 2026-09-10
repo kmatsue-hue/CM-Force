@@ -2,9 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   AlertCircle,
+  ArrowUpDown,
   Calendar,
   Check,
   ChevronRight,
+  FileText,
   Download,
   Filter,
   Plus,
@@ -13,19 +15,44 @@ import {
   X,
 } from 'lucide-react';
 import { PHASES } from '../data/phases.js';
+import { FACILITY_TYPE_OPTIONS, getFacilityTypeMeta } from '../data/facilityTypes.js';
+import { PREFECTURE_OPTIONS, getProjectPrefecture, normalizePrefecture } from '../data/prefectures.js';
 import { formatJPY, formatJPYShort } from '../utils/format.js';
+import { formatSalesPattern } from '../utils/salesPattern.js';
 import { rowsToCsv, downloadCsv, todayStamp } from '../utils/csv.js';
 import Card from '../ui/Card.jsx';
 import RankBadge from '../ui/RankBadge.jsx';
 import RankPieChart from '../ui/RankPieChart.jsx';
 import MiniArrowDiagram from '../ui/MiniArrowDiagram.jsx';
 import { AssistTip } from '../ui/AssistMode.jsx';
+import ProjectName from '../ui/ProjectName.jsx';
+import { getProjectDisplayName, stripProjectHonorific } from '../utils/projectName.js';
 
 const DASHBOARD_MODE_STORAGE_KEY = 'cm-force-dashboard-mode-v1';
+const HEARING_SHEET_FILTER_OPTIONS = ['あり', 'なし'];
+const getHearingSheetLabel = (project) => (project?.hasIctHearingSheet ? 'あり' : 'なし');
+const createEmptyFilterConfig = () => ({
+  patterns: [],
+  statuses: [],
+  pics: [],
+  caremaxPics: [],
+  facilityTypes: [],
+  hearingSheets: [],
+  lostOnly: false,
+});
+const cloneFilterConfig = (config) => ({
+  patterns: [...config.patterns],
+  statuses: [...config.statuses],
+  pics: [...config.pics],
+  caremaxPics: [...config.caremaxPics],
+  facilityTypes: [...config.facilityTypes],
+  hearingSheets: [...config.hearingSheets],
+  lostOnly: Boolean(config.lostOnly),
+});
 
 // --- ダッシュボード ---
-const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false, canEdit = true, canSwitchDashboardMode = false }) => {
-  // 企画部のみ表示する セットアップ / テクノスジャパン 切替スイッチ
+const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false, canEdit = true, canSwitchDashboardMode = false }) => {
+  // 企画部のみ表示する SOMPOケアソリューションズ / テクノスジャパン 切替スイッチ
   // モードは localStorage に保持しておきリロード後も復元される
   const [dashboardMode, setDashboardMode] = useState(() => {
     if (!canSwitchDashboardMode) return 'setup';
@@ -40,61 +67,48 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
   }, [dashboardMode, canSwitchDashboardMode]);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('updatedAtDesc');
+  const [isDetailView, setIsDetailView] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const filterMenuRef = React.useRef(null);
-  const filterButtonRef = React.useRef(null);
-  // ポップアップは Portal で body に出すため、ボタンの座標を保持して fixed 配置する
-  const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, right: 0, width: 720 });
-  const [filterConfig, setFilterConfig] = useState({ patterns: [], statuses: [], pics: [] });
+  // ポップアップは Portal で body に出し、画面中央へ固定表示する
+  const [filterMenuWidth, setFilterMenuWidth] = useState(720);
+  const [filterConfig, setFilterConfig] = useState(createEmptyFilterConfig);
+  const [draftFilterConfig, setDraftFilterConfig] = useState(createEmptyFilterConfig);
 
-  // ボタンの位置を計算してポップアップを開く
-  // 横長メニューが画面外に出ないよう、画面幅に応じて幅とオフセットをクランプ
-  const FILTER_MENU_WIDTH = 720;
+  // 画面幅に合わせて横幅を調整し、中央配置でポップアップを開く
+  const FILTER_MENU_WIDTH = 880;
   const FILTER_MENU_MARGIN = 8;
   const openFilterMenu = () => {
-    if (filterButtonRef.current) {
-      const rect = filterButtonRef.current.getBoundingClientRect();
-      const availableWidth = window.innerWidth - FILTER_MENU_MARGIN * 2;
-      const menuWidth = Math.min(FILTER_MENU_WIDTH, availableWidth);
-      // ボタン右端を基点に右寄せ。左にはみ出す場合は左端から margin だけ離して固定
-      let right = window.innerWidth - rect.right;
-      if (rect.right - menuWidth < FILTER_MENU_MARGIN) {
-        right = window.innerWidth - menuWidth - FILTER_MENU_MARGIN;
-      }
-      setFilterMenuPos({ top: rect.bottom + 8, right, width: menuWidth });
-    }
-    setIsFilterMenuOpen((prev) => !prev);
+    if (isFilterMenuOpen) return;
+    const availableWidth = window.innerWidth - FILTER_MENU_MARGIN * 2;
+    setFilterMenuWidth(Math.min(FILTER_MENU_WIDTH, availableWidth));
+    setDraftFilterConfig(cloneFilterConfig(filterConfig));
+    setIsFilterMenuOpen(true);
   };
-
-  // 絞り込みポップの外側クリック・スクロール・リサイズで閉じる
-  useEffect(() => {
-    if (!isFilterMenuOpen) return;
-    const handleClickOutside = (e) => {
-      if (
-        filterMenuRef.current && !filterMenuRef.current.contains(e.target) &&
-        filterButtonRef.current && !filterButtonRef.current.contains(e.target)
-      ) {
-        setIsFilterMenuOpen(false);
-      }
-    };
-    const handleReposition = () => setIsFilterMenuOpen(false);
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('resize', handleReposition);
-    window.addEventListener('scroll', handleReposition, true);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('resize', handleReposition);
-      window.removeEventListener('scroll', handleReposition, true);
-    };
-  }, [isFilterMenuOpen]);
   const [lostInfoModal, setLostInfoModal] = useState(null); // 表示中の失注情報案件
   const [newProject, setNewProject] = useState({
     name: '',
     companyName: '',
+    prefecture: '',
     salesPattern: 'パターン1（完全卸し）',
+    facilityType: '',
     expectedRevenue: '',
+    picCaremaxStaffNumber: '',
   });
+  const caremaxSalesStaff = useMemo(
+    () => staff.filter(member => member.department === '営業部'),
+    [staff]
+  );
+  const caremaxStaffByNumber = useMemo(
+    () => new Map(caremaxSalesStaff.map(member => [member.staffNumber, member])),
+    [caremaxSalesStaff]
+  );
+  const caremaxStaffNumberByName = useMemo(
+    () => new Map(caremaxSalesStaff.map(member => [member.name, member.staffNumber])),
+    [caremaxSalesStaff]
+  );
 
   const activeProjects = projects.filter(p => !p.isLost);
   const alerts = activeProjects.flatMap(p =>
@@ -111,10 +125,29 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
 
   const handleCreate = (e) => {
     e.preventDefault();
-    if (!newProject.name.trim() || !newProject.companyName.trim()) return;
-    onAddProject({ ...newProject, expectedRevenue: Number(newProject.expectedRevenue) || 0 });
+    const sanitizedProjectName = stripProjectHonorific(newProject.name);
+    if (!sanitizedProjectName || !newProject.companyName.trim() || !newProject.picCaremaxStaffNumber) return;
+    const assigned = caremaxSalesStaff.find(
+      member => member.staffNumber === newProject.picCaremaxStaffNumber
+    );
+    if (!assigned) return;
+    onAddProject({
+      ...newProject,
+      name: sanitizedProjectName,
+      prefecture: normalizePrefecture(newProject.prefecture),
+      expectedRevenue: Number(newProject.expectedRevenue) || 0,
+      picCaremax: assigned.name,
+    });
     setIsModalOpen(false);
-    setNewProject({ name: '', companyName: '', salesPattern: 'パターン1（完全卸し）', expectedRevenue: '' });
+    setNewProject({
+      name: '',
+      companyName: '',
+      prefecture: '',
+      salesPattern: 'パターン1（完全卸し）',
+      facilityType: '',
+      expectedRevenue: '',
+      picCaremaxStaffNumber: '',
+    });
   };
 
   const allPics = useMemo(() => {
@@ -122,8 +155,27 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
     return [...new Set(pics)];
   }, [projects]);
 
+  const allCaremaxPics = useMemo(() => {
+    const assignees = new Map();
+    projects.forEach((project) => {
+      const key = project.picCaremaxStaffNumber
+        || caremaxStaffNumberByName.get(project.picCaremax)
+        || project.picCaremax
+        || '';
+      if (!key) return;
+      const member = caremaxStaffByNumber.get(key);
+      const label = member
+        ? `${member.staffNumber}｜${member.name}`
+        : (project.picCaremax || key);
+      assignees.set(key, label);
+    });
+    return [...assignees.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'ja'));
+  }, [projects, caremaxStaffByNumber, caremaxStaffNumberByName]);
+
   const toggleFilter = (category, value) => {
-    setFilterConfig(prev => {
+    setDraftFilterConfig(prev => {
       const current = prev[category];
       return current.includes(value)
         ? { ...prev, [category]: current.filter(v => v !== value) }
@@ -131,23 +183,60 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
     });
   };
 
-  const clearFilters = () => setFilterConfig({ patterns: [], statuses: [], pics: [] });
+  const clearFilters = () => setDraftFilterConfig(createEmptyFilterConfig());
+  const applyFilters = () => setFilterConfig(cloneFilterConfig(draftFilterConfig));
 
   const filteredProjects = useMemo(() => {
-    let result = [...projects];
+    // 通常は進行中案件だけを表示し、明示的に選択した場合のみ失注案件へ切り替える。
+    let result = projects.filter(p => filterConfig.lostOnly ? p.isLost : !p.isLost);
     if (searchTerm) {
+      const normalizedSearchTerm = searchTerm.trim();
       result = result.filter(p =>
-        p.name.includes(searchTerm) || p.endUser.companyName.includes(searchTerm)
+        p.name.includes(normalizedSearchTerm)
+        || getProjectDisplayName(p.name).includes(normalizedSearchTerm)
+        || getProjectPrefecture(p).includes(normalizedSearchTerm)
+        || p.endUser.companyName.includes(normalizedSearchTerm)
       );
     }
     if (filterConfig.patterns.length > 0) result = result.filter(p => filterConfig.patterns.includes(p.salesPattern));
     if (filterConfig.statuses.length > 0) result = result.filter(p => filterConfig.statuses.includes(p.status));
     if (filterConfig.pics.length > 0) result = result.filter(p => filterConfig.pics.includes(p.picSetup));
-    result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    if (filterConfig.caremaxPics.length > 0) {
+      result = result.filter((p) => {
+        const key = p.picCaremaxStaffNumber
+          || caremaxStaffNumberByName.get(p.picCaremax)
+          || p.picCaremax
+          || '';
+        return filterConfig.caremaxPics.includes(key);
+      });
+    }
+    if (filterConfig.facilityTypes.length > 0) {
+      result = result.filter(p => filterConfig.facilityTypes.includes(p.facilityType));
+    }
+    if (filterConfig.hearingSheets.length > 0) {
+      result = result.filter(p => filterConfig.hearingSheets.includes(getHearingSheetLabel(p)));
+    }
+    result.sort((a, b) => {
+      if (sortOption === 'hearingSheetDesc') {
+        const diff = Number(Boolean(b.hasIctHearingSheet)) - Number(Boolean(a.hasIctHearingSheet));
+        if (diff !== 0) return diff;
+      }
+      if (sortOption === 'hearingSheetAsc') {
+        const diff = Number(Boolean(a.hasIctHearingSheet)) - Number(Boolean(b.hasIctHearingSheet));
+        if (diff !== 0) return diff;
+      }
+      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
     return result;
-  }, [projects, searchTerm, filterConfig]);
+  }, [projects, searchTerm, filterConfig, sortOption, caremaxStaffNumberByName]);
 
-  const activeFilterCount = filterConfig.patterns.length + filterConfig.statuses.length + filterConfig.pics.length;
+  const activeFilterCount = filterConfig.patterns.length
+    + filterConfig.statuses.length
+    + filterConfig.pics.length
+    + filterConfig.caremaxPics.length
+    + filterConfig.facilityTypes.length
+    + filterConfig.hearingSheets.length
+    + (filterConfig.lostOnly ? 1 : 0);
 
   // 案件情報を CSV 出力（絞り込み・検索が反映された結果をそのまま出力）
   // カラムはセクション順に整理:
@@ -163,7 +252,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
       // 進行状況
       'ステータス',
       // 担当・期間
-      'セットアップ担当者',
+      'SOMPOケアソリューションズ担当者',
       'ケアマックス担当者',
       '開始日',
       'クローズ予定日',
@@ -175,12 +264,14 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
       '直販価格(円)',
       // エンドユーザー情報
       'エンドユーザー企業名',
+      '都道府県',
       'エンドユーザー担当者名',
       'エンドユーザー連絡先',
       'エンドユーザー住所',
       '販売店',
       // その他
       'ニーズ・課題',
+      '活動ログ',
       // 失注情報
       '失注フラグ',
       '失注理由',
@@ -188,6 +279,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
       '失注日',
       // メタ
       '更新日時',
+      'ICTヒアリングシート',
     ];
     const rows = filteredProjects.map((p) => [
       // 案件基本
@@ -211,12 +303,17 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
       p.financial?.directSalesPrice ?? '',
       // エンドユーザー情報
       p.endUser?.companyName ?? '',
+      getProjectPrefecture(p),
       p.endUser?.department ?? '',
       p.endUser?.contact ?? '',
       p.endUser?.address ?? '',
       p.endUser?.retailerName ?? '',
       // その他
       p.endUser?.needsAndIssues ?? '',
+      p.logs?.map(log => {
+        const next = [log.nextAction, log.nextDate].filter(Boolean).join(' / ');
+        return `${log.date || ''} ${log.content || ''}${next ? ` (${next})` : ''}`.trim();
+      }).join('\n') ?? '',
       // 失注情報
       p.isLost ? '失注' : '',
       p.lostInfo?.reason ?? '',
@@ -224,6 +321,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
       p.lostInfo?.date ?? '',
       // メタ
       p.updatedAt ?? '',
+      getHearingSheetLabel(p),
     ]);
     const csv = rowsToCsv([header, ...rows]);
     downloadCsv(`cm-force-projects-${todayStamp()}.csv`, csv);
@@ -236,9 +334,9 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
     const p3 = activeProjects.filter(p => p.salesPattern?.includes('パターン3')).reduce((s, p) => s + (p.financial?.expectedRevenue || 0), 0);
     const max = Math.max(p1, p2, p3, 1);
     return [
-      { label: 'パターン1 (卸)', value: p1, color: 'bg-sky-500', pct: (p1 / max) * 100 },
-      { label: 'パターン2 (分離)', value: p2, color: 'bg-yellow-500', pct: (p2 / max) * 100 },
-      { label: 'パターン3 (紹介)', value: p3, color: 'bg-green-500', pct: (p3 / max) * 100 },
+      { label: '①完全卸し', value: p1, color: 'bg-sky-500', pct: (p1 / max) * 100 },
+      { label: '②分離', value: p2, color: 'bg-yellow-500', pct: (p2 / max) * 100 },
+      { label: '③完全紹介', value: p3, color: 'bg-green-500', pct: (p3 / max) * 100 },
     ];
   }, [activeProjects]);
 
@@ -251,11 +349,11 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
 
   return (
     <div className="space-y-5 sm:space-y-8 relative">
-      {/* 企画部のみ: セットアップ / テクノスジャパン モード切替 */}
+      {/* 企画部のみ: SOMPOケアソリューションズ / テクノスジャパン モード切替 */}
       {canSwitchDashboardMode && (
         <div className="flex justify-center">
           <AssistTip
-            text={"セットアップ案件と テクノスジャパン案件の管理ビューを切り替えます。\nテクノスジャパンビューは現在準備中です。"}
+            text={"SOMPOケアソリューションズ案件と テクノスジャパン案件の管理ビューを切り替えます。\nテクノスジャパンビューは現在準備中です。"}
             side="bottom"
           >
             <div className="inline-flex p-1 bg-gray-100 rounded-full border border-gray-200 shadow-sm">
@@ -269,7 +367,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                 }`}
                 aria-pressed={dashboardMode === 'setup'}
               >
-                セットアップ
+                SOMPOケアソリューションズ
               </button>
               <button
                 type="button"
@@ -286,6 +384,22 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
             </div>
           </AssistTip>
         </div>
+      )}
+
+      {dashboardMode === 'setup' && (
+        <section className="dashboard-hero flex items-end">
+          <div className="relative z-10 max-w-3xl">
+            <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400">
+              Sales command center · {dateStr}（{weekday}）
+            </p>
+            <h1 className="text-[clamp(2.05rem,4.7vw,4.45rem)] font-black leading-[.94] tracking-[-0.06em] text-black">
+              案件の現在地を、<br />ひと目で。
+            </h1>
+            <p className="mt-3 max-w-xl text-xs sm:text-sm font-medium leading-5 text-gray-500">
+              営業の進捗、売上見込み、次に動くべき案件をひとつの画面に集約しています。
+            </p>
+          </div>
+        </section>
       )}
 
       {/* テクノスジャパン モード（プレースホルダー枠） */}
@@ -347,10 +461,24 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
         <div className="space-y-6">
           <Card>
             <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3 sm:justify-between sm:items-center bg-white relative z-20">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                案件一覧
-                <span className="text-xs font-semibold text-gray-400 tabular-nums">{filteredProjects.length}件</span>
-              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  案件一覧
+                  <span className="text-xs font-semibold text-gray-400 tabular-nums">{filteredProjects.length}件</span>
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsDetailView(prev => !prev)}
+                  aria-pressed={isDetailView}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                    isDetailView
+                      ? 'border-purple-300 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-purple-600 text-white shadow-[0_0_16px_rgba(168,85,247,0.72),0_0_32px_rgba(217,70,239,0.38)] ring-2 ring-purple-300/60'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  詳細ビュー
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
                 <AssistTip text={"案件名・エンドユーザー企業名で部分一致検索。\n複数キーワードは未対応です。"} side="bottom" wrapClassName="flex-1 sm:flex-initial min-w-0">
                   <div className="relative w-full sm:w-auto">
@@ -364,10 +492,23 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                     />
                   </div>
                 </AssistTip>
-                <AssistTip text={"販売スキーム / ステータス / セットアップ担当者で絞り込み。\n設定した条件は CSV 出力にも反映されます。"} side="bottom">
+                <AssistTip text={"最新更新順に加えて、ICTヒアリングシート有無でも並び替えできます。"} side="bottom">
+                  <div className="relative">
+                    <ArrowUpDown className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                    <select
+                      value={sortOption}
+                      onChange={(e) => setSortOption(e.target.value)}
+                      className="rounded-full border border-gray-200 bg-white py-2 pl-10 pr-9 text-sm font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="updatedAtDesc">最新更新順</option>
+                      <option value="hearingSheetDesc">ヒアリングシート有り優先</option>
+                      <option value="hearingSheetAsc">ヒアリングシート無し優先</option>
+                    </select>
+                  </div>
+                </AssistTip>
+                <AssistTip text={"案件状態 / 販売スキーム / ステータス / 担当者 / 施設業態 / ヒアリングシートで絞り込み。\n設定した条件は CSV 出力にも反映されます。"} side="bottom">
                 <div>
                   <button
-                    ref={filterButtonRef}
                     onClick={openFilterMenu}
                     className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors flex items-center shadow-sm"
                   >
@@ -382,14 +523,57 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                   {isFilterMenuOpen && createPortal(
                     <div
                       ref={filterMenuRef}
-                      style={{ position: 'fixed', top: filterMenuPos.top, right: filterMenuPos.right, width: filterMenuPos.width, maxWidth: 'calc(100vw - 16px)', zIndex: 200 }}
+                      style={{
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        width: filterMenuWidth,
+                        maxWidth: 'calc(100vw - 16px)',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 200,
+                      }}
                       className="bg-white rounded-xl shadow-xl border border-gray-100 max-h-[80vh] overflow-y-auto"
                     >
-                      <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
-                        <span className="text-sm font-bold text-gray-700">絞り込み条件</span>
-                        <button onClick={clearFilters} className="text-xs text-purple-600 hover:underline font-semibold">クリア</button>
+                      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-white px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-gray-700">絞り込み条件</span>
+                          <button onClick={clearFilters} className="text-xs text-purple-600 hover:underline font-semibold">選択をクリア</button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={applyFilters}
+                            className="rounded-full bg-purple-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-purple-700"
+                          >
+                            絞り込む
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsFilterMenuOpen(false)}
+                            className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50"
+                            aria-label="絞り込み条件を閉じる"
+                          >
+                            <X className="mr-1 h-3.5 w-3.5" />
+                            閉じる
+                          </button>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 divide-x divide-gray-100">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="px-4 py-3">
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">案件状態</span>
+                          <label
+                            onClick={() => setDraftFilterConfig(prev => ({ ...prev, lostOnly: !prev.lostOnly }))}
+                            className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
+                          >
+                            <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${draftFilterConfig.lostOnly ? 'bg-red-500 border-red-500' : 'border-gray-300 group-hover:border-red-400'}`}>
+                              {draftFilterConfig.lostOnly && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className="text-sm text-gray-600 group-hover:text-gray-900">失注案件のみ表示</span>
+                          </label>
+                          <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                            未選択時は進行中案件のみ表示します
+                          </p>
+                        </div>
                         <div className="px-4 py-3">
                           <span className="text-xs font-bold text-gray-800 mb-2 block">販売スキーム</span>
                           {['パターン1（完全卸し）', 'パターン2（分離）', 'パターン3（完全紹介）'].map(pattern => (
@@ -398,10 +582,10 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                               onClick={() => toggleFilter('patterns', pattern)}
                               className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
                             >
-                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${filterConfig.patterns.includes(pattern) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
-                                {filterConfig.patterns.includes(pattern) && <Check className="w-3 h-3 text-white" />}
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${draftFilterConfig.patterns.includes(pattern) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {draftFilterConfig.patterns.includes(pattern) && <Check className="w-3 h-3 text-white" />}
                               </div>
-                              <span className="text-sm text-gray-600 group-hover:text-gray-900">{pattern}</span>
+                              <span className="text-sm text-gray-600 group-hover:text-gray-900">{formatSalesPattern(pattern)}</span>
                             </label>
                           ))}
                         </div>
@@ -413,15 +597,15 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                               onClick={() => toggleFilter('statuses', phase)}
                               className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
                             >
-                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${filterConfig.statuses.includes(phase) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
-                                {filterConfig.statuses.includes(phase) && <Check className="w-3 h-3 text-white" />}
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${draftFilterConfig.statuses.includes(phase) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {draftFilterConfig.statuses.includes(phase) && <Check className="w-3 h-3 text-white" />}
                               </div>
                               <span className="text-sm text-gray-600 group-hover:text-gray-900">{phase}</span>
                             </label>
                           ))}
                         </div>
                         <div className="px-4 py-3">
-                          <span className="text-xs font-bold text-gray-800 mb-2 block">セットアップ担当者</span>
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">SOMPOケアソリューションズ担当者</span>
                           {allPics.length === 0 && (
                             <span className="text-xs text-gray-400 italic">担当者未設定の案件のみです</span>
                           )}
@@ -431,10 +615,58 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                               onClick={() => toggleFilter('pics', pic)}
                               className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
                             >
-                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${filterConfig.pics.includes(pic) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
-                                {filterConfig.pics.includes(pic) && <Check className="w-3 h-3 text-white" />}
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${draftFilterConfig.pics.includes(pic) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {draftFilterConfig.pics.includes(pic) && <Check className="w-3 h-3 text-white" />}
                               </div>
                               <span className="text-sm text-gray-600 group-hover:text-gray-900 break-all">{pic}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="px-4 py-3">
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">ケアマックス営業担当</span>
+                          {allCaremaxPics.length === 0 && (
+                            <span className="text-xs text-gray-400 italic">担当営業者が設定されていません</span>
+                          )}
+                          {allCaremaxPics.map(option => (
+                            <label
+                              key={option.value}
+                              onClick={() => toggleFilter('caremaxPics', option.value)}
+                              className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
+                            >
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${draftFilterConfig.caremaxPics.includes(option.value) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {draftFilterConfig.caremaxPics.includes(option.value) && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="text-sm text-gray-600 group-hover:text-gray-900 break-all">{option.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="px-4 py-3">
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">施設業態</span>
+                          {FACILITY_TYPE_OPTIONS.map(option => (
+                            <label
+                              key={option}
+                              onClick={() => toggleFilter('facilityTypes', option)}
+                              className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
+                            >
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${draftFilterConfig.facilityTypes.includes(option) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {draftFilterConfig.facilityTypes.includes(option) && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="text-sm text-gray-600 group-hover:text-gray-900">{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="px-4 py-3">
+                          <span className="text-xs font-bold text-gray-800 mb-2 block">ICTヒアリングシート</span>
+                          {HEARING_SHEET_FILTER_OPTIONS.map(option => (
+                            <label
+                              key={option}
+                              onClick={() => toggleFilter('hearingSheets', option)}
+                              className="flex items-center space-x-2 py-1.5 cursor-pointer group select-none"
+                            >
+                              <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${draftFilterConfig.hearingSheets.includes(option) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 group-hover:border-purple-400'}`}>
+                                {draftFilterConfig.hearingSheets.includes(option) && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="text-sm text-gray-600 group-hover:text-gray-900">{option}</span>
                             </label>
                           ))}
                         </div>
@@ -472,57 +704,98 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-gray-100 text-gray-400">
                   <tr>
-                    <th className="px-3 sm:px-5 py-3 font-semibold text-xs">案件名 / エンドユーザー</th>
-                    <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">販売スキーム</th>
+                    <th className="px-3 sm:px-5 py-3 font-semibold text-xs">案件名</th>
+                    {isDetailView && (
+                      <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">都道府県</th>
+                    )}
+                    {isDetailView && (
+                      <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">販売スキーム</th>
+                    )}
                     <th className="hidden md:table-cell px-5 py-3 font-semibold text-xs">ステータス</th>
                     <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">想定金額</th>
-                    <th className="px-3 sm:px-5 py-3 font-semibold text-xs">ランク</th>
+                    {isDetailView && (
+                      <th className="px-3 sm:px-5 py-3 font-semibold text-xs">ランク</th>
+                    )}
                     <th className="px-3 sm:px-5 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredProjects.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400 font-medium">
+                      <td colSpan={isDetailView ? 7 : 4} className="px-5 py-12 text-center text-sm text-gray-400 font-medium">
                         条件に一致する案件がありません
                       </td>
                     </tr>
                   )}
-                  {filteredProjects.map(project => {
+                  {filteredProjects.map((project, index) => {
                     const phaseIdx = PHASES.indexOf(project.status);
                     const progressPct = ((phaseIdx + 1) / PHASES.length) * 100;
+                    const facilityMeta = getFacilityTypeMeta(project.facilityType);
+                    const prefecture = getProjectPrefecture(project);
+                    const caremaxSalesName = project.picCaremax
+                      || caremaxStaffByNumber.get(project.picCaremaxStaffNumber)?.name
+                      || '';
                     return (
                       <tr
-                        key={project.id}
+                        key={`${project.id}-${project.updatedAt || index}`}
                         className={`group cursor-pointer transition-colors ${
                           project.isLost ? 'opacity-60 hover:opacity-80' : 'hover:bg-gray-50'
                         }`}
                         onClick={() => onSelectProject(project.id)}
                       >
                         <td className="px-3 sm:px-5 py-3.5">
-                          <div className="font-bold text-gray-900 leading-tight text-sm sm:text-base">
-                            {project.name}
-                            {project.isLost && <span className="ml-2 text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">LOST</span>}
+                          <div className="flex items-center gap-2 font-bold text-gray-900 leading-tight text-sm sm:text-base">
+                            {isDetailView && facilityMeta.label && (
+                              <span
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200/80 bg-white px-1.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm shadow-slate-200/40"
+                                title={`施設業態: ${facilityMeta.label}`}
+                              >
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${facilityMeta.markerClassName}`}
+                                  aria-hidden="true"
+                                />
+                                {facilityMeta.label}
+                              </span>
+                            )}
+                            <ProjectName name={project.name} />
+                            {isDetailView && project.hasIctHearingSheet && (
+                              <span
+                                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-500 ring-1 ring-inset ring-amber-200"
+                                title="ICTヒアリングシート回収済み"
+                                aria-label="ICTヒアリングシート回収済み"
+                              >
+                                <FileText className="h-3.5 w-3.5" strokeWidth={1.8} />
+                              </span>
+                            )}
+                            {project.isLost && <span className="ml-1 text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">LOST</span>}
                           </div>
-                          <div className="text-gray-500 text-xs mt-1">
-                            {project.endUser.companyName}
-                          </div>
+                          {caremaxSalesName && (
+                            <div className="mt-1 text-[11px] font-medium text-slate-400 sm:text-xs">
+                              担当者：<span className="font-semibold text-slate-600">{caremaxSalesName}</span>
+                            </div>
+                          )}
                           {/* モバイル時のみ補助情報を行内に表示 */}
                           <div className="sm:hidden mt-2 space-y-1.5">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-                              {(() => {
-                                const p = project.salesPattern || '';
-                                const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500', text: 'text-sky-700', short: 'P①' }
-                                          : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: 'P②' }
-                                          : p.includes('パターン3') ? { dot: 'bg-green-500', text: 'text-green-700', short: 'P③' }
-                                          : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—' };
-                                return (
-                                  <span className="inline-flex items-center gap-1 font-bold">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                                    <span className={cfg.text}>{cfg.short}</span>
-                                  </span>
-                                );
-                              })()}
+                              {isDetailView && (() => {
+                                  const projectPrefecture = getProjectPrefecture(project);
+                                  const p = project.salesPattern || '';
+                                  const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500', text: 'text-sky-700', short: '①完全卸し' }
+                                            : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: '②分離' }
+                                            : p.includes('パターン3') ? { dot: 'bg-green-500', text: 'text-green-700', short: '③完全紹介' }
+                                            : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—' };
+                                  return (
+                                    <span className="inline-flex items-center gap-1 font-bold">
+                                      {projectPrefecture && (
+                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+                                          {projectPrefecture}
+                                        </span>
+                                      )}
+                                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                                      <span className={cfg.text}>{cfg.short}</span>
+                                    </span>
+                                  );
+                                })()}
                               <span className="font-semibold text-purple-700">
                                 {project.status}
                                 <span className="ml-1 text-gray-400 tabular-nums">{phaseIdx + 1}/{PHASES.length}</span>
@@ -533,24 +806,34 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                             <MiniArrowDiagram currentPhase={project.status} />
                           </div>
                         </td>
-                        <td className="hidden sm:table-cell px-5 py-3.5">
-                          {(() => {
-                            const p = project.salesPattern || '';
-                            const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500',    text: 'text-sky-700',    short: 'パターン①', sub: '完全卸し' }
-                                      : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: 'パターン②', sub: '分離' }
-                                      : p.includes('パターン3') ? { dot: 'bg-green-500',  text: 'text-green-700',  short: 'パターン③', sub: '完全紹介' }
-                                      : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—', sub: '' };
-                            return (
-                              <div className="flex items-center gap-2">
-                                <span className={`inline-block w-2 h-2 rounded-full ${cfg.dot}`} />
-                                <div>
+                        {isDetailView && (
+                          <td className="hidden sm:table-cell px-5 py-3.5">
+                            {prefecture ? (
+                              <span className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-inset ring-slate-200">
+                                {prefecture}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-gray-300">—</span>
+                            )}
+                          </td>
+                        )}
+                        {isDetailView && (
+                          <td className="hidden sm:table-cell px-5 py-3.5">
+                            {(() => {
+                              const p = project.salesPattern || '';
+                              const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500',    text: 'text-sky-700',    short: '①完全卸し' }
+                                        : p.includes('パターン2') ? { dot: 'bg-yellow-500', text: 'text-yellow-700', short: '②分離' }
+                                        : p.includes('パターン3') ? { dot: 'bg-green-500',  text: 'text-green-700',  short: '③完全紹介' }
+                                        : { dot: 'bg-gray-300', text: 'text-gray-500', short: '—' };
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-block w-2 h-2 rounded-full ${cfg.dot}`} />
                                   <div className={`text-xs font-bold ${cfg.text}`}>{cfg.short}</div>
-                                  {cfg.sub && <div className="text-[10px] text-gray-400 font-semibold">{cfg.sub}</div>}
                                 </div>
-                              </div>
-                            );
-                          })()}
-                        </td>
+                              );
+                            })()}
+                          </td>
+                        )}
                         <td className="hidden md:table-cell px-5 py-3.5 min-w-[200px]">
                           <div className={`text-xs font-bold mb-1.5 ${project.isLost ? 'text-gray-500' : 'text-gray-900'}`}>
                             {project.status} <span className="text-gray-400 font-semibold tabular-nums ml-1">{phaseIdx + 1}/{PHASES.length}</span>
@@ -560,9 +843,11 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                         <td className="hidden sm:table-cell px-5 py-3.5 font-semibold text-gray-700 tabular-nums">
                           {formatJPY(project.financial.expectedRevenue || 0)}
                         </td>
-                        <td className="px-3 sm:px-5 py-3.5">
-                          <RankBadge rank={project.rank} />
-                        </td>
+                        {isDetailView && (
+                          <td className="px-3 sm:px-5 py-3.5">
+                            <RankBadge rank={project.rank} />
+                          </td>
+                        )}
                         <td className="px-5 py-3.5 text-right">
                           {project.isLost ? (
                             <button
@@ -590,7 +875,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
 
       {/* 失注情報モーダル */}
       {lostInfoModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm" onClick={() => setLostInfoModal(null)}>
+        <div className="mobile-sheet fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm" onClick={() => setLostInfoModal(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
@@ -600,7 +885,9 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-red-500 uppercase tracking-wider">LOST</p>
-                  <h4 className="text-base font-bold text-gray-900 leading-tight">{lostInfoModal.name}</h4>
+                  <h4 className="text-base font-bold text-gray-900 leading-tight">
+                    <ProjectName name={lostInfoModal.name} />
+                  </h4>
                 </div>
               </div>
               <button onClick={() => setLostInfoModal(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
@@ -652,7 +939,7 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
 
       {/* 新規案件モーダル */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
+        <div className="mobile-sheet fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-lg animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900">新規案件の追加</h3>
@@ -671,6 +958,9 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none"
                   placeholder="例：〇〇施設 介護システム導入"
                 />
+                <p className="mt-1 text-[11px] font-medium text-gray-400">
+                  「様」は一覧・詳細画面で自動表示されます
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">エンドユーザー（企業名/施設名） <span className="text-red-500">*</span></label>
@@ -683,7 +973,41 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                   placeholder="例：社会福祉法人 〇〇会"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">都道府県</label>
+                <select
+                  value={newProject.prefecture}
+                  onChange={(e) => setNewProject({ ...newProject, prefecture: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none appearance-none cursor-pointer"
+                >
+                  <option value="">都道府県を選択してください</option>
+                  {PREFECTURE_OPTIONS.map(prefecture => (
+                    <option key={prefecture} value={prefecture}>
+                      {prefecture}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  ケアマックス営業担当者 <span className="text-red-500">*</span>
+                  <span className="ml-2 text-[10px] font-normal text-purple-600">案件追加で25 EXP</span>
+                </label>
+                <select
+                  required
+                  value={newProject.picCaremaxStaffNumber}
+                  onChange={(e) => setNewProject({ ...newProject, picCaremaxStaffNumber: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none cursor-pointer"
+                >
+                  <option value="">担当営業者を選択してください</option>
+                  {caremaxSalesStaff.map(member => (
+                    <option key={member.staffNumber} value={member.staffNumber}>
+                      {member.staffNumber}｜{member.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">販売スキーム</label>
                   <select
@@ -691,9 +1015,24 @@ const Dashboard = ({ projects, onSelectProject, onAddProject, canViewProfit = fa
                     onChange={(e) => setNewProject({ ...newProject, salesPattern: e.target.value })}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none appearance-none cursor-pointer"
                   >
-                    <option value="パターン1（完全卸し）">パターン①（完全卸し）</option>
-                    <option value="パターン2（分離）">パターン②（分離）</option>
-                    <option value="パターン3（完全紹介）">パターン③（完全紹介）</option>
+                    <option value="パターン1（完全卸し）">①完全卸し</option>
+                    <option value="パターン2（分離）">②分離</option>
+                    <option value="パターン3（完全紹介）">③完全紹介</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">施設業態</label>
+                  <select
+                    value={newProject.facilityType}
+                    onChange={(e) => setNewProject({ ...newProject, facilityType: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">業態を選択してください</option>
+                    {FACILITY_TYPE_OPTIONS.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   STARTUP_POP_STORAGE_KEY,
   VILLAGE_PROFIT_UNIT,
@@ -13,7 +13,6 @@ import {
   CUTE_CHARACTER_PIXELS,
   PIXEL_ARTS,
   CLASS_FEATURE_OVERLAYS,
-  TREASURE_VAULT_ART,
   ACTION_BADGE_ARTS,
 } from './quest/data/pixelArt.js';
 import {
@@ -29,7 +28,13 @@ import {
   USER_ACCOUNT_PROFILES,
   MAP_CSV_SORT_OPTIONS,
   CHAR_CLASSES,
+  getClassEvolution,
 } from './quest/data/users.js';
+import {
+  mapCmForceProjectsToQuest,
+  mapCmForceProjectsToQuestLogs,
+  calculateQuestExperienceByStaff,
+} from './quest/data/cmForceBridge.js';
 import {
   INITIAL_USER,
   INITIAL_KPI,
@@ -67,30 +72,162 @@ import GuildScreen from './quest/screens/GuildScreen.jsx';
 import MapScreen from './quest/screens/MapScreen.jsx';
 import HomeScreen from './quest/screens/HomeScreen.jsx';
 import VillageScreen from './quest/screens/VillageScreen.jsx';
+import BombQuestGame from './quest/minigame/BombQuestGame.jsx';
+
+const getQuestStaffSortValue = (staffNumber = '') => {
+  const normalized = String(staffNumber || '').trim().toUpperCase();
+  const cmMatch = normalized.match(/^CM[-_\s]?(\d+)/);
+  if (cmMatch) return Number(cmMatch[1]);
+  const fallbackMatch = normalized.match(/(\d+)/);
+  return fallbackMatch ? 100000 + Number(fallbackMatch[1]) : Number.MAX_SAFE_INTEGER;
+};
 
 
 
-export default function KaientaiQuest() {
+export default function KaientaiQuest({ projects = null, staff = [] }) {
+  const isCmForceLinked = Array.isArray(projects);
+  const projectSource = isCmForceLinked ? projects : [];
+  const linkedClients = useMemo(
+    () => mapCmForceProjectsToQuest(projectSource, staff),
+    [projectSource, staff]
+  );
+  const linkedLogs = useMemo(
+    () => mapCmForceProjectsToQuestLogs(projectSource, staff),
+    [projectSource, staff]
+  );
   const [currentScreen, setCurrentScreen] = useState('home'); 
+  const [isBombGameOpen, setIsBombGameOpen] = useState(false);
   const [guildTab, setGuildTab] = useState('sales'); 
   const [mapZoom, setMapZoom] = useState(1);
   const [villageZoom, setVillageZoom] = useState(0.9);
   const [user, setUser] = useState(INITIAL_USER);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editCharType, setEditCharType] = useState("");
+  const questCharacters = useMemo(() => {
+    const expByStaffNumber = calculateQuestExperienceByStaff(projectSource, staff);
+    const salesStaff = staff.filter(member => member.department === '営業部');
+    const source = salesStaff.length > 0 ? salesStaff : staff;
+    return source.map((member) => {
+      const character = CHAR_CLASSES.find(item => item.type === member.questCharacterType) || CHAR_CLASSES[0];
+      const exp = expByStaffNumber.get(member.staffNumber) || 0;
+      const level = Math.floor(exp / 100) + 1;
+      const evolution = getClassEvolution(character.type, level);
+      return {
+        id: Number(String(member.staffNumber || '').match(/\d+/)?.[0] || 999),
+        staffNumber: member.staffNumber || '',
+        name: member.name,
+        charType: character.type,
+        className: evolution.name,
+        classTier: evolution.tier,
+        nextClassName: evolution.next?.name || '',
+        nextClassLevel: evolution.next?.level || null,
+        level,
+        exp,
+        gold: 0,
+        nextExp: level * 100,
+      };
+    }).sort((a, b) => {
+      const sortDiff = getQuestStaffSortValue(a.staffNumber) - getQuestStaffSortValue(b.staffNumber);
+      if (sortDiff !== 0) return sortDiff;
+      return String(a.staffNumber || a.name || '').localeCompare(
+        String(b.staffNumber || b.name || ''),
+        'ja',
+        { numeric: true }
+      );
+    });
+  }, [projectSource, staff]);
+  const [selectedStatusStaffNumber, setSelectedStatusStaffNumber] = useState('');
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
   const [kpi, setKpi] = useState(INITIAL_KPI);
-  const [clients, setClients] = useState(INITIAL_CLIENTS);
-  const [logs, setLogs] = useState(INITIAL_LOGS);
+  const [clients, setClients] = useState(() => isCmForceLinked ? linkedClients : INITIAL_CLIENTS);
+  const [logs, setLogs] = useState(() => isCmForceLinked ? linkedLogs : INITIAL_LOGS);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [mapCsvSort, setMapCsvSort] = useState("all");
   const [editProgress, setEditProgress] = useState(null); // 進捗編集用のステート
   const [popup, setPopup] = useState({ show: false, message: "", isHighlight: false });
   const [dayCycleNow, setDayCycleNow] = useState(() => Date.now());
   const timerRef = useRef(null);
-  const { playRetroBgm, playInputSe, playPopupSe } = useRetroAudio();
+  const secretLogoTapCountRef = useRef(0);
+  const secretLogoTapTimerRef = useRef(null);
+  const { playRetroBgm, playInputSe, playPopupSe, playTabSe, setRetroBgmDucked } = useRetroAudio();
   const prevPopupShownRef = useRef(false);
+
+  const handleSecretLogoTap = () => {
+    playInputSe();
+    secretLogoTapCountRef.current += 1;
+    if (secretLogoTapTimerRef.current) {
+      window.clearTimeout(secretLogoTapTimerRef.current);
+    }
+    if (secretLogoTapCountRef.current >= 5) {
+      secretLogoTapCountRef.current = 0;
+      secretLogoTapTimerRef.current = null;
+      playPopupSe(true);
+      setIsBombGameOpen(true);
+      return;
+    }
+    secretLogoTapTimerRef.current = window.setTimeout(() => {
+      secretLogoTapCountRef.current = 0;
+      secretLogoTapTimerRef.current = null;
+    }, 2200);
+  };
+
+  useEffect(() => () => {
+    if (secretLogoTapTimerRef.current) {
+      window.clearTimeout(secretLogoTapTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    setRetroBgmDucked(isBombGameOpen);
+    return () => {
+      if (isBombGameOpen) setRetroBgmDucked(false);
+    };
+  }, [isBombGameOpen]);
+
+  // QUESTを開いた操作のユーザーアクティベーション中に、可能な限り即座にBGMを開始する。
+  useLayoutEffect(() => {
+    playRetroBgm();
+  }, []);
+
+  useEffect(() => {
+    if (questCharacters.length === 0) return;
+    if (!questCharacters.some(character => character.staffNumber === selectedStatusStaffNumber)) {
+      setSelectedStatusStaffNumber(questCharacters[0].staffNumber);
+    }
+  }, [questCharacters, selectedStatusStaffNumber]);
+
+  useEffect(() => {
+    if (!isCmForceLinked) return;
+    setClients(linkedClients);
+    setLogs(linkedLogs);
+    setSelectedClientId(current =>
+      linkedClients.some(client => String(client.id) === String(current)) ? current : ''
+    );
+    setKpi(current => ({
+      ...current,
+      hearing: { ...current.hearing, current: linkedClients.filter(client => client.progress.hearing > 0).length },
+      estimate: { ...current.estimate, current: linkedClients.filter(client => client.progress.estimate > 0).length },
+      contract: { ...current.contract, current: linkedClients.filter(client => client.progress.contract > 0).length },
+    }));
+  }, [isCmForceLinked, linkedClients, linkedLogs]);
+
+  useEffect(() => {
+    questCharacters.forEach((character) => {
+      if (!character?.name || !character?.staffNumber) return;
+      USERS_MASTER[character.name] = {
+        id: character.id,
+        staffNumber: character.staffNumber,
+        charType: character.charType,
+        className: character.className,
+        level: character.level,
+        exp: character.exp,
+      };
+      const member = staff.find(item => item.staffNumber === character.staffNumber);
+      USER_ACCOUNT_PROFILES[character.name] = {
+        fullName: character.name,
+        account: member?.email || `${character.staffNumber.toLowerCase()}@caremax.local`,
+        staffNumber: character.staffNumber,
+      };
+    });
+  }, [questCharacters, staff]);
 
   // 選択されたクライアントが変わったら、編集用ステートにコピー
   useEffect(() => {
@@ -132,8 +269,6 @@ export default function KaientaiQuest() {
     setPopup({ show: true, message: saved.message, isHighlight: true });
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setPopup({ show: false, message: "", isHighlight: false }), 4500);
-    playRetroBgm();
-
     try {
       localStorage.removeItem(STARTUP_POP_STORAGE_KEY);
     } catch {
@@ -146,11 +281,11 @@ export default function KaientaiQuest() {
       playRetroBgm();
     };
 
-    window.addEventListener("pointerdown", handleFirstInteraction);
-    window.addEventListener("keydown", handleFirstInteraction);
+    window.addEventListener("pointerdown", handleFirstInteraction, true);
+    window.addEventListener("keydown", handleFirstInteraction, true);
     return () => {
-      window.removeEventListener("pointerdown", handleFirstInteraction);
-      window.removeEventListener("keydown", handleFirstInteraction);
+      window.removeEventListener("pointerdown", handleFirstInteraction, true);
+      window.removeEventListener("keydown", handleFirstInteraction, true);
     };
   }, []);
 
@@ -177,12 +312,24 @@ export default function KaientaiQuest() {
     prevPopupShownRef.current = popup.show;
   }, [popup.show, popup.isHighlight]);
 
+  const handleScreenChange = (screen) => {
+    playRetroBgm();
+    playTabSe(screen);
+    setCurrentScreen(screen);
+  };
+
 
   const getCharInfo = (userName) => {
     if (userName === user.name) {
-      return { id: user.id, charType: user.charType, className: user.className, level: user.level };
+      const evolution = getClassEvolution(user.charType, user.level);
+      return { id: user.id, charType: user.charType, className: evolution.name, level: user.level };
     }
-    return USERS_MASTER[userName] || { id: 999, charType: 'hero', className: 'みならい', level: 1 };
+    const storedUser = USERS_MASTER[userName];
+    if (!storedUser) return { id: 999, charType: 'hero', className: 'みならい', level: 1 };
+    return {
+      ...storedUser,
+      className: getClassEvolution(storedUser.charType, storedUser.level).name,
+    };
   };
 
 
@@ -208,34 +355,6 @@ export default function KaientaiQuest() {
     if (!isEveningToMidnight) return false;
     const threshold = 16 + cityLightLevel * 76 + bonus;
     return Math.abs(seed * 37 + 17) % 100 < threshold;
-  };
-
-  const handleSaveProfile = () => {
-    if (!editName.trim()) {
-      alert("なまえを いれてください。");
-      return;
-    }
-    const selectedClass = CHAR_CLASSES.find(c => c.type === editCharType) || CHAR_CLASSES[0];
-    
-    if (user.name !== editName.trim()) {
-      const updatedLogs = logs.map(log => 
-        log.userName === user.name ? { ...log, userName: editName.trim() } : log
-      );
-      setLogs(updatedLogs);
-      setClients(prevClients =>
-        prevClients.map(client =>
-          client.owner === user.name ? { ...client, owner: editName.trim() } : client
-        )
-      );
-    }
-  
-    setUser({
-      ...user,
-      name: editName.trim(),
-      charType: editCharType,
-      className: selectedClass.name
-    });
-    setIsEditingProfile(false);
   };
 
   // CSVファイルアップロード処理
@@ -415,11 +534,15 @@ export default function KaientaiQuest() {
         let newLevel = Math.floor(newExp / 100) + 1;
         let isLevelUp = newLevel > user.level;
         let newNextExp = newLevel * 100;
+        const previousEvolution = getClassEvolution(user.charType, user.level);
+        const newEvolution = getClassEvolution(user.charType, newLevel);
+        const didEvolve = newEvolution.name !== previousEvolution.name;
 
-        setUser({ ...user, exp: newExp, gold: user.gold + goldGained, level: newLevel, nextExp: newNextExp });
+        setUser({ ...user, exp: newExp, gold: user.gold + goldGained, level: newLevel, nextExp: newNextExp, className: newEvolution.name });
 
         if (expGained > 0) msg += `\n\nけいけんち ${expGained} を かくとく！\n${goldGained}ゴールド を てにいれた！`;
         if (isLevelUp) msg += `\n\n${user.name}の レベルが\n${newLevel} に あがった！`;
+        if (didEvolve) msg += `\n\n${user.name}は\n「${newEvolution.name}」へ しんかした！`;
         shouldPlayCelebration = expGained > 0 || isLevelUp;
       } else {
         if (expGained > 0) msg += `\n\n${csvUserName}は ギルドで\nおおきな こうけんを しました！`;
@@ -504,8 +627,11 @@ export default function KaientaiQuest() {
     let newLevel = Math.floor(newExp / 100) + 1;
     let isLevelUp = newLevel > user.level;
     let newNextExp = newLevel * 100;
+    const previousEvolution = getClassEvolution(user.charType, user.level);
+    const newEvolution = getClassEvolution(user.charType, newLevel);
+    const didEvolve = newEvolution.name !== previousEvolution.name;
 
-    setUser({ ...user, exp: newExp, gold: user.gold + goldGained, level: newLevel, nextExp: newNextExp });
+    setUser({ ...user, exp: newExp, gold: user.gold + goldGained, level: newLevel, nextExp: newNextExp, className: newEvolution.name });
     setKpi(kpiUpdates);
     setLogs([...newLogs.reverse(), ...logs]);
 
@@ -528,6 +654,7 @@ export default function KaientaiQuest() {
       if (diffProfit > 0 && diffContract > 0) msg += `\n\n${formatG(diffProfit)} の りえきを\nせいやくで かくとく！`;
       else if (diffProfit > 0) msg += `\n\n${formatG(diffProfit)} の りえきを\nついかで かくとく！`;
       if (isLevelUp) msg += `\n\n${user.name}の レベルが\n${newLevel} に あがった！`;
+      if (didEvolve) msg += `\n\n${user.name}は\n「${newEvolution.name}」へ しんかした！`;
     } else {
       msg = `${user.name}は きろくを\nただしく しゅうせいした！`;
     }
@@ -638,6 +765,11 @@ export default function KaientaiQuest() {
     if (!acc.users[log.userName]) acc.users[log.userName] = { sales: 0, profit: 0 };
     acc.total.sales += (log.sales || 0);
     acc.users[log.userName].sales += (log.sales || 0);
+    if (log.isActivityLogReward) {
+      const activityProfit = Math.max(0, Number(log.profit) || 0);
+      acc.total.profit += activityProfit;
+      acc.users[log.userName].profit += activityProfit;
+    }
     return acc;
   }, { total: { sales: 0, profit: 0 }, users: {} });
 
@@ -651,34 +783,13 @@ export default function KaientaiQuest() {
 
   const sortedUsers = Object.entries(dashboardData.users).sort((a, b) => b[1].profit - a[1].profit || b[1].sales - a[1].sales);
   const profitRankingUsers = sortedUsers.filter(([, data]) => (data?.profit || 0) > 0);
-  const currentUserTotalProfit = Math.max(0, Math.floor(dashboardData.users[user.name]?.profit || 0));
+  const selectedStatusUser = questCharacters.find(
+    character => character.staffNumber === selectedStatusStaffNumber
+  ) || user;
+  const currentUserTotalProfit = Math.max(0, Math.floor(dashboardData.users[selectedStatusUser.name]?.profit || 0));
   const profitCoinCount = Math.max(0, Math.floor(currentUserTotalProfit / PROFIT_G_PER_COIN));
   const profitBundleCount = Math.floor(profitCoinCount / PROFIT_COINS_PER_BUNDLE);
   const profitLooseCoinCount = profitCoinCount % PROFIT_COINS_PER_BUNDLE;
-  const profitCoinCols = 17;
-  const profitCoinSlots = Array.from({ length: profitLooseCoinCount }, (_, idx) => {
-    const row = Math.floor(idx / profitCoinCols);
-    const col = idx % profitCoinCols;
-    const step = 94 / Math.max(1, profitCoinCols - 1);
-    const offset = row % 2 === 1 ? step * 0.5 : 0;
-    return {
-      left: Math.min(96, 3 + col * step + offset),
-      bottom: 4 + row * 2.4,
-      z: 1 + row,
-    };
-  });
-  const profitBundleCols = 7;
-  const profitBundleSlots = Array.from({ length: profitBundleCount }, (_, idx) => {
-    const row = Math.floor(idx / profitBundleCols);
-    const col = idx % profitBundleCols;
-    const step = 82 / Math.max(1, profitBundleCols - 1);
-    const offset = row % 2 === 1 ? step * 0.3 : 0;
-    return {
-      left: Math.min(92, 9 + col * step + offset),
-      bottom: 28 + row * 4.1,
-      z: 14 + row,
-    };
-  });
 
 
 
@@ -692,45 +803,79 @@ export default function KaientaiQuest() {
       <div className="fc-frame w-full h-[100dvh] overflow-hidden relative font-dq flex flex-col sm:h-[85vh] sm:max-h-[900px] sm:min-h-[600px] sm:max-w-[450px]">
         
         {/* ヘッダー */}
-        <header className="fc-header p-3 text-center shrink-0 z-20">
-          <h1 className="dq-logo text-[14px] sm:text-[16px] font-dq-title dq-title-shadow mt-1">Kaientai Quest</h1>
+        <header className="fc-header px-3 py-2 text-center shrink-0 z-20">
+          <div className="dq-logo-lockup">
+            <span className="dq-watch-device is-left" aria-hidden="true">
+              <span className="dq-watch-antenna" />
+              <span className="dq-watch-body">
+                <span className="dq-watch-lens" />
+                <span className="dq-watch-light" />
+              </span>
+              <span className="dq-watch-stand" />
+            </span>
+            <button
+              type="button"
+              className="dq-logo border-0 bg-transparent p-0"
+              aria-label="Kaientai Quest"
+              onClick={handleSecretLogoTap}
+            >
+              <span className="dq-logo-kicker">
+                <span aria-hidden="true">◆</span>
+                KAIENTAI
+                <span aria-hidden="true">◆</span>
+              </span>
+              <span className="dq-logo-title">
+                <span className="dq-logo-crest" aria-hidden="true">K</span>
+                <span className="dq-logo-word">QUEST</span>
+              </span>
+              <span className="dq-logo-ribbon">介援隊クエスト</span>
+            </button>
+            <span className="dq-watch-device is-right" aria-hidden="true">
+              <span className="dq-watch-antenna" />
+              <span className="dq-watch-body">
+                <span className="dq-watch-lens" />
+                <span className="dq-watch-light" />
+              </span>
+              <span className="dq-watch-stand" />
+            </span>
+          </div>
         </header>
 
         {/* メインコンテンツ */}
-        <main className="fc-main flex-1 overflow-y-auto custom-scrollbar relative">
+        <main className="fc-main min-h-0 flex-1 overflow-y-auto custom-scrollbar relative">
           <div className="min-h-full">
-            {currentScreen === 'home' && <HomeScreen user={user} kpi={kpi} currentUserTotalProfit={currentUserTotalProfit} profitBundleSlots={profitBundleSlots} profitCoinSlots={profitCoinSlots} profitBundleCount={profitBundleCount} profitLooseCoinCount={profitLooseCoinCount} isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} editName={editName} setEditName={setEditName} editCharType={editCharType} setEditCharType={setEditCharType} handleSaveProfile={handleSaveProfile} />}
+            {currentScreen === 'home' && <HomeScreen user={selectedStatusUser} characters={questCharacters} selectedStaffNumber={selectedStatusStaffNumber} onSelectCharacter={setSelectedStatusStaffNumber} kpi={kpi} currentUserTotalProfit={currentUserTotalProfit} profitBundleCount={profitBundleCount} profitLooseCoinCount={profitLooseCoinCount} />}
             {currentScreen === 'village' && <VillageScreen user={user} villageZoom={villageZoom} setVillageZoom={setVillageZoom} sortedUsers={sortedUsers} isEveningToMidnight={isEveningToMidnight} cityLightLevel={cityLightLevel} lightDisplayGate={lightDisplayGate} twilightWarmth={twilightWarmth} nightDensity={nightDensity} dawnRise={dawnRise} villageHour={villageHour} villageStageBrightness={villageStageBrightness} villageStageSaturation={villageStageSaturation} isCityWindowLit={isCityWindowLit} />}
-            {currentScreen === 'map' && <MapScreen clients={clients} selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId} mapCsvSort={mapCsvSort} setMapCsvSort={setMapCsvSort} mapZoom={mapZoom} setMapZoom={setMapZoom} editProgress={editProgress} setEditProgress={setEditProgress} user={user} sortClientsByMode={sortClientsByMode} resolveClientOwnerName={resolveClientOwnerName} handleFileUpload={handleFileUpload} handleExportClientsCsv={handleExportClientsCsv} handleReport={handleReport} />}
+            {currentScreen === 'map' && <MapScreen clients={clients} selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId} mapCsvSort={mapCsvSort} setMapCsvSort={setMapCsvSort} mapZoom={mapZoom} setMapZoom={setMapZoom} editProgress={editProgress} setEditProgress={setEditProgress} user={user} sortClientsByMode={sortClientsByMode} resolveClientOwnerName={resolveClientOwnerName} handleFileUpload={handleFileUpload} handleExportClientsCsv={handleExportClientsCsv} handleReport={handleReport} isCmForceLinked={isCmForceLinked} />}
             {currentScreen === 'guild' && <GuildScreen guildTab={guildTab} setGuildTab={setGuildTab} profitRankingUsers={profitRankingUsers} user={user} setSelectedUserProfile={setSelectedUserProfile} logs={logs} />}
           </div>
         </main>
 
         {/* ナビゲーションバー */}
-        <nav className="fc-nav absolute bottom-0 left-0 w-full pt-2 px-2 nav-safe-area flex items-center gap-1 z-30 shrink-0">
+        <nav className="fc-nav w-full pt-2 px-2 nav-safe-area flex items-center gap-1 z-30 shrink-0">
           <button 
-            onClick={() => setCurrentScreen('home')}
+            onClick={() => handleScreenChange('home')}
             className={`fc-nav-btn ${currentScreen === 'home' ? 'is-active' : ''}`}
           >
             <span className={`fc-nav-caret ${currentScreen === 'home' ? 'is-active' : ''}`}>▼</span>
             <span className="text-[11px] leading-none whitespace-nowrap">じょうたい</span>
           </button>
           <button 
-            onClick={() => setCurrentScreen('village')}
+            onClick={() => handleScreenChange('village')}
             className={`fc-nav-btn ${currentScreen === 'village' ? 'is-active' : ''}`}
           >
             <span className={`fc-nav-caret ${currentScreen === 'village' ? 'is-active' : ''}`}>▼</span>
             <span className="text-[11px] leading-none whitespace-nowrap">かいえんたい村</span>
           </button>
           <button 
-            onClick={() => setCurrentScreen('map')}
+            onClick={() => handleScreenChange('map')}
             className={`fc-nav-btn ${currentScreen === 'map' ? 'is-active' : ''}`}
           >
             <span className={`fc-nav-caret ${currentScreen === 'map' ? 'is-active' : ''}`}>▼</span>
             <span className="text-[11px] leading-none whitespace-nowrap">ぼうけん</span>
           </button>
           <button 
-            onClick={() => setCurrentScreen('guild')}
+            onClick={() => handleScreenChange('guild')}
             className={`fc-nav-btn ${currentScreen === 'guild' ? 'is-active' : ''}`}
           >
             <span className={`fc-nav-caret ${currentScreen === 'guild' ? 'is-active' : ''}`}>▼</span>
@@ -753,6 +898,12 @@ export default function KaientaiQuest() {
 
         {/* プロフィール詳細モーダル */}
         <UserProfileModal selectedUserProfile={selectedUserProfile} user={user} dashboardData={dashboardData} onClose={() => setSelectedUserProfile(null)} />
+
+        <BombQuestGame
+          open={isBombGameOpen}
+          user={selectedStatusUser}
+          onClose={() => setIsBombGameOpen(false)}
+        />
 
       </div>
     </div>

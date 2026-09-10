@@ -1,8 +1,8 @@
 import React from 'react';
 import { formatG, getActionBadgeType } from '../utils/format.js';
-import { getBgColorByLevel, getBorderClassByLevel, getCharInfo } from '../utils/userLevel.js';
+import { getCharInfo } from '../utils/userLevel.js';
 import DqWindow from '../ui/DqWindow.jsx';
-import PixelCharacter from '../ui/PixelCharacter.jsx';
+import CharacterIcon from '../ui/CharacterIcon.jsx';
 import PixelActionBadge from '../ui/PixelActionBadge.jsx';
 
 const GuildScreen = ({
@@ -30,7 +30,7 @@ const GuildScreen = ({
     </div>
 
     {guildTab === 'sales' ? (
-      <DqWindow title="うりあげ・こうけんしゃ" className="mt-4">
+      <DqWindow title="りえき・こうけんしゃ" className="mt-4">
         <div className="space-y-3 mt-2">
           {profitRankingUsers.length > 0 ? profitRankingUsers.map(([userName, data], index) => {
             const charInfo = getCharInfo(userName, user);
@@ -43,16 +43,18 @@ const GuildScreen = ({
                 onClick={() => setSelectedUserProfile(userName)}
               >
                 <div className={`text-[19px] font-bold w-6 text-center ${rankColor}`}>{rank}</div>
-                <div className={`p-1 rounded-[4px] ${getBgColorByLevel(charInfo.level)} ${getBorderClassByLevel(charInfo.level)}`}>
-                  <PixelCharacter type={charInfo.charType} size={32} />
-                </div>
+                <CharacterIcon type={charInfo.charType} level={charInfo.level} size={40} />
                 <div className="flex-1 min-w-0">
                   <div className="text-[15px] font-bold truncate">{userName}</div>
-                  <div className="text-[12px] text-gray-400">Lv.{charInfo.level} {charInfo.className}</div>
+                  <div className="text-[12px] text-gray-400">
+                    {charInfo.staffNumber ? `${charInfo.staffNumber} · ` : ''}Lv.{charInfo.level} {charInfo.className}
+                  </div>
                 </div>
                 <div className="text-right text-[14px]">
                   <div className="text-yellow-200">{formatG(data.profit)}</div>
-                  <div className="text-gray-400 text-[11px]">売上 {formatG(data.sales)}</div>
+                  <div className="text-gray-400 text-[11px]">
+                    売上実績 {data.sales > 0 ? formatG(data.sales) : '—'}
+                  </div>
                 </div>
               </div>
             );
@@ -70,16 +72,15 @@ const GuildScreen = ({
             const charInfo = getCharInfo(log.userName, user);
             return (
               <div key={log.id} className="border-b-[2px] border-dashed border-gray-700 pb-3 last:border-0">
-                <div className="flex justify-between text-[13px] text-gray-400 mb-1">
+                <div className="text-[13px] text-gray-400 mb-1">
                   <span>{log.date}</span>
-                  <span>◆ {log.area}</span>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div
-                    className={`relative cursor-pointer hover:opacity-80 transition-opacity mt-5 p-1 rounded border border-gray-600 ${getBgColorByLevel(charInfo.level)}`}
+                    className="relative mt-5 cursor-pointer transition-transform hover:scale-105"
                     onClick={() => setSelectedUserProfile(log.userName)}
                   >
-                    <PixelCharacter type={charInfo.charType} size={28} />
+                    <CharacterIcon type={charInfo.charType} level={charInfo.level} size={38} />
                     <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-10 p-[2px] border-[2px] border-white bg-[#0d218b] animate-bounce-slow">
                       <PixelActionBadge type={getActionBadgeType(log.actionType)} size={24} />
                     </div>

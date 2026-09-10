@@ -14,12 +14,12 @@ import {
   Trash2,
   TrendingUp,
 } from 'lucide-react';
-import { PHASES } from '../data/phases.js';
+import { PHASES, WEB_MEETING_PHASE } from '../data/phases.js';
 import { CONSTRUCTION_PHASE, CONSTRUCTION_SUBTASK_TEMPLATE } from '../data/constructionSubtasks.js';
 import { useToast } from './Toast.jsx';
 import { AssistTip } from './AssistMode.jsx';
 
-const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, advanceErrors = [], mainSkipTarget, onSkipToMain, isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog }) => {
+const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, onAdvancePhase, nextPhaseLabel, onRevertPhase, prevPhaseLabel, advanceErrors = [], mainSkipTarget, onSkipToMain, isAtBranchPoint, canStartKaientaiHere, onStartKaientai, canStartMarginHere, onStartMargin, onAddProjectLog, webMeetingLogs = [], onAddWebMeetingLog, salesPattern = '', canViewMarginProfit = true }) => {
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [notes, setNotes] = useState(data?.notes || '');
@@ -35,17 +35,29 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   const [marginAmount, setMarginAmount] = useState(data?.marginAmount ?? '');
   const [marginScheduledDate, setMarginScheduledDate] = useState(data?.marginScheduledDate || '');
   const isMarginPaymentPhase = phase === 'マージン支払';
+  const isPatternOne = salesPattern?.includes('パターン1');
+  const isMarginProfitRestricted = isMarginPaymentPhase && isPatternOne && !canViewMarginProfit;
+  const displayPhaseName = isMarginPaymentPhase && isPatternOne ? '上乗せ利益の記録' : phase;
   const isConstructionPhase = phase === CONSTRUCTION_PHASE;
+  const isWebMeetingPhase = phase === WEB_MEETING_PHASE;
   // 施工サブタスク: 未初期化なら template から複製
   const initialSubTasks = data?.subTasks ?? CONSTRUCTION_SUBTASK_TEMPLATE.map((t) => ({ ...t }));
   const [subTasks, setSubTasks] = useState(initialSubTasks);
   const [newSubTaskText, setNewSubTaskText] = useState('');
   // 活動ログのインライン入力
   const [quickLog, setQuickLog] = useState({ content: '', nextAction: '', nextDate: '' });
+  const [webMeetingDraft, setWebMeetingDraft] = useState({ requestedTo: '', requestContent: '' });
   const submitQuickLog = () => {
     if (!quickLog.content.trim() || !onAddProjectLog) return;
     onAddProjectLog({ ...quickLog });
     setQuickLog({ content: '', nextAction: '', nextDate: '' });
+  };
+  const submitWebMeetingLog = () => {
+    const requestedTo = webMeetingDraft.requestedTo.trim();
+    const requestContent = webMeetingDraft.requestContent.trim();
+    if (!requestedTo || !requestContent || !onAddWebMeetingLog) return;
+    onAddWebMeetingLog({ requestedTo, requestContent });
+    setWebMeetingDraft({ requestedTo: '', requestContent: '' });
   };
 
   const currentPhaseIndex = PHASES.indexOf(currentProjectPhase);
@@ -66,6 +78,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
     setNewLinkUrl('');
     setNewLinkTitle('');
     setNewSubTaskText('');
+    setWebMeetingDraft({ requestedTo: '', requestContent: '' });
   }, [phase, data]);
 
   // 施工サブタスク: 即時保存（楽観的更新）
@@ -145,10 +158,10 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   return (
     <div className="mt-6 sm:mt-10 border-t border-gray-100 pt-5 sm:pt-8 animate-in fade-in slide-in-from-top-4 duration-500 relative">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
-        <AssistTip text={`現在表示中のフェーズ「${phase}」の詳細パネル。\nここに記録したメモ・タスク・リンクは案件詳細とフェーズに紐付いて保存されます。\n進行中のフェーズは右上に「進行中」ラベルが付きます。`} side="bottom">
+        <AssistTip text={`現在表示中のフェーズ「${displayPhaseName}」の詳細パネル。\nここに記録したメモ・タスク・リンクは案件詳細とフェーズに紐付いて保存されます。\n進行中のフェーズは右上に「進行中」ラベルが付きます。`} side="bottom">
           <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center tracking-tight cursor-help">
             <div className="w-1.5 h-6 bg-purple-600 rounded-full mr-3"></div>
-            {phase} <span className="ml-2 text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider">Details</span>
+            {displayPhaseName} <span className="ml-2 text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider">Details</span>
           </h3>
         </AssistTip>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -166,7 +179,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               onClick={onStartMargin}
               className="px-5 py-2 rounded-full text-sm font-bold bg-orange-600 text-white hover:bg-orange-700 shadow-md border border-orange-600 flex items-center transition-all"
             >
-              マージン支払サブフローを開始
+              {isPatternOne ? '利益計上サブフローを開始' : 'マージン支払サブフローを開始'}
               <ChevronRight className="w-4 h-4 ml-1" />
             </button>
           )}
@@ -262,17 +275,25 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 flex flex-col space-y-6">
           {/* マージン支払専用フィールド */}
-          {isMarginPaymentPhase && (
+          {isMarginPaymentPhase && isMarginProfitRestricted && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+              <p className="text-sm font-bold text-slate-600">社内利益情報</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                この販売スキームの利益額は、現在のアカウント権限では表示されません。
+              </p>
+            </div>
+          )}
+          {isMarginPaymentPhase && !isMarginProfitRestricted && (
             <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-5">
               <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center">
                 <TrendingUp className="w-4 h-4 mr-2 text-orange-500" />
-                ケアマックスへの支払
+                {isPatternOne ? 'ケアマックス 上乗せ利益' : 'ケアマックスへの支払'}
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* 支払額（税抜） */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    支払額（税抜）
+                    {isPatternOne ? '当社上乗せ利益額（税抜）' : '支払額（税抜）'}
                   </label>
                   {isEditing ? (
                     <div className="relative">
@@ -293,8 +314,8 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                         : <span className="text-gray-400 font-medium">未入力</span>}
                     </p>
                   )}
-                  {/* 税込み自動表示 */}
-                  {marginAmount !== '' && !isNaN(Number(marginAmount)) && (
+                  {/* 支払額の場合のみ税込額を併記。利益額は入力値をそのまま扱う。 */}
+                  {!isPatternOne && marginAmount !== '' && !isNaN(Number(marginAmount)) && (
                     <p className="text-xs font-bold text-gray-500 mt-2 tabular-nums">
                       税込（10%）<span className="ml-2 text-orange-700">¥{Math.floor(Number(marginAmount) * 1.10).toLocaleString()}</span>
                     </p>
@@ -304,7 +325,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
                 {/* 支払予定日 */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    支払予定日
+                    {isPatternOne ? '利益確定日' : '支払予定日'}
                   </label>
                   {isEditing ? (
                     <input
@@ -325,8 +346,75 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
             </div>
           )}
 
-          {/* 活動ログ クイック入力（コンパクト） */}
-          <div className="bg-purple-50/40 border border-purple-100 rounded-xl p-3">
+          {/* WEB面談可否の専用依頼ログ */}
+          {isWebMeetingPhase && (
+            <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="flex items-center text-sm font-bold text-sky-900">
+                    <MessageSquare className="mr-2 h-4 w-4 text-sky-600" />
+                    WEB面談可否 依頼ログ
+                  </h4>
+                  <p className="mt-1 text-xs leading-relaxed text-sky-700">依頼先と依頼内容は必須です。この専用ログは5,000G加算の対象外です。</p>
+                </div>
+                <span className="shrink-0 rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-bold text-sky-700">
+                  {webMeetingLogs.length}件
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-bold text-gray-700">誰に依頼したか <span className="text-red-600">*</span></span>
+                  <input
+                    type="text"
+                    disabled={isLost}
+                    value={webMeetingDraft.requestedTo}
+                    onChange={event => setWebMeetingDraft(current => ({ ...current, requestedTo: event.target.value }))}
+                    placeholder="例：○○施設　山田様"
+                    className="w-full rounded-lg border border-sky-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:bg-gray-100"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-bold text-gray-700">依頼内容 <span className="text-red-600">*</span></span>
+                  <textarea
+                    rows={3}
+                    disabled={isLost}
+                    value={webMeetingDraft.requestContent}
+                    onChange={event => setWebMeetingDraft(current => ({ ...current, requestContent: event.target.value }))}
+                    placeholder="例：システム担当者同席でのWEB面談可否と、候補日を3日分確認"
+                    className="w-full resize-none rounded-lg border border-sky-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:bg-gray-100"
+                  />
+                </label>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={submitWebMeetingLog}
+                    disabled={isLost || !webMeetingDraft.requestedTo.trim() || !webMeetingDraft.requestContent.trim()}
+                    className="inline-flex items-center rounded-lg bg-sky-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />依頼ログを追加
+                  </button>
+                </div>
+              </div>
+
+              {webMeetingLogs.length > 0 && (
+                <div className="mt-4 space-y-2 border-t border-sky-200 pt-3">
+                  {webMeetingLogs.map(log => (
+                    <div key={log.id} className="rounded-lg border border-sky-100 bg-white px-3 py-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                        <span className="font-bold text-sky-800">依頼先：{log.requestedTo}</span>
+                        <span className="font-medium text-gray-400">{log.date}</span>
+                      </div>
+                      <p className="mt-1.5 whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-gray-800">{log.requestContent}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 活動ログ クイック入力（WEB面談可否は専用ログに置き換え） */}
+          {!isWebMeetingPhase && <div className="bg-purple-50/40 border border-purple-100 rounded-xl p-3">
             <AssistTip text={"商談・電話・メールのやり取りを時系列で残せます。\n「次のアクション + 日付」を入れておくと、活動ログタブやアラート表示に活用されます。\n※ EUとの商談 から進めるには最新ログに日付が必要"} side="bottom">
               <h4 className="text-xs font-bold text-gray-600 mb-2 flex items-center cursor-help">
                 <MessageSquare className="w-3.5 h-3.5 mr-1.5 text-purple-500" />
@@ -341,7 +429,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               value={quickLog.content}
               onChange={e => setQuickLog({ ...quickLog, content: e.target.value })}
             />
-            <div className="mt-2 grid grid-cols-[1fr_140px_auto] gap-2 items-center">
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2 items-center">
               <input
                 type="text"
                 disabled={isLost}
@@ -360,12 +448,12 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               <button
                 onClick={submitQuickLog}
                 disabled={isLost || !quickLog.content.trim()}
-                className="px-4 py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 sm:py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 <Plus className="w-3 h-3 mr-1" />追加
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* 施工サブタスク（施工・納品 フェーズのみ） */}
           {isConstructionPhase && (

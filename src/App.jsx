@@ -16,6 +16,7 @@ import {
   KPI_ALLOWED_ROLES,
   STAFF_ADMIN_ROLES,
   KAIENTAI_QUEST_ROLES,
+  normalizeRole,
 } from './cmforce/data/roles.js';
 import {
   PHASES,
@@ -29,7 +30,7 @@ import {
   isMarginBranchablePattern,
 } from './cmforce/data/phases.js';
 import { mockProjects } from './cmforce/data/mockProjects.js';
-import { DEPARTMENT_OPTIONS, initialStaff } from './cmforce/data/staff.js';
+import { DEPARTMENT_OPTIONS, initialStaff, normalizeStaffMembers } from './cmforce/data/staff.js';
 import { formatJPY, formatJPYShort } from './cmforce/utils/format.js';
 import Card from './cmforce/ui/Card.jsx';
 import Badge from './cmforce/ui/Badge.jsx';
@@ -44,25 +45,48 @@ import KpiView from './cmforce/views/KpiView.jsx';
 import StaffView from './cmforce/views/StaffView.jsx';
 import LoginScreen from './cmforce/views/LoginScreen.jsx';
 import { AUTH_STORAGE_KEY } from './cmforce/data/auth.js';
+import { normalizeFacilityType } from './cmforce/data/facilityTypes.js';
+import { extractPrefectureFromAddress, normalizePrefecture } from './cmforce/data/prefectures.js';
 import { ToastProvider } from './cmforce/ui/Toast.jsx';
 import Logo from './cmforce/ui/Logo.jsx';
 import { AssistProvider, AssistTip } from './cmforce/ui/AssistMode.jsx';
+import { stripProjectHonorific } from './cmforce/utils/projectName.js';
 
 const ASSIST_STORAGE_KEY = 'cm-force-assist-v1';
 import {
   PROJECTS_STORAGE_KEY,
+  PROJECTS_HISTORY_STORAGE_KEY,
   STAFF_STORAGE_KEY,
   loadJson,
   saveJson,
+  appendJsonHistory,
 } from './cmforce/data/storage.js';
 import {
   PROJECTS_COLLECTION,
   STAFF_COLLECTION,
   subscribeToCollection,
+  createProjectDocument,
+  saveProjectDocument,
+  deleteProjectDocument,
   saveDocument,
   deleteDocument,
   seedIfEmpty,
 } from './cmforce/data/firestoreSync.js';
+
+const normalizeProjectRecord = (project = {}) => ({
+  ...project,
+  name: stripProjectHonorific(project?.name || ''),
+  facilityType: normalizeFacilityType(project?.facilityType),
+  hasIctHearingSheet: Boolean(project?.hasIctHearingSheet),
+  endUser: {
+    ...(project?.endUser || {}),
+    prefecture: normalizePrefecture(project?.endUser?.prefecture)
+      || extractPrefectureFromAddress(project?.endUser?.address),
+  },
+});
+
+const normalizeProjects = (items = []) =>
+  Array.isArray(items) ? items.map(normalizeProjectRecord) : [];
 
 
 
@@ -71,11 +95,14 @@ import {
 // --- メインアプリ ---
 export default function App() {
   // 初期値: localStorage（オフラインバックアップ）→ mock の順でフォールバック
-  const [projects, setProjects] = useState(() => loadJson(PROJECTS_STORAGE_KEY, mockProjects));
-  const [staff, setStaff] = useState(() => loadJson(STAFF_STORAGE_KEY, initialStaff));
+  const [projects, setProjects] = useState(() => normalizeProjects(loadJson(PROJECTS_STORAGE_KEY, mockProjects)));
+  const [staff, setStaff] = useState(() => normalizeStaffMembers(loadJson(STAFF_STORAGE_KEY, initialStaff)));
 
   // localStorage バックアップ（Firestore 不通時の保険）
-  useEffect(() => { saveJson(PROJECTS_STORAGE_KEY, projects); }, [projects]);
+  useEffect(() => {
+    saveJson(PROJECTS_STORAGE_KEY, projects);
+    appendJsonHistory(PROJECTS_HISTORY_STORAGE_KEY, projects, 8);
+  }, [projects]);
   useEffect(() => { saveJson(STAFF_STORAGE_KEY, staff); }, [staff]);
 
   // Firestore リアルタイム同期: マウント時に空コレクションをシード→ 購読開始
@@ -87,7 +114,7 @@ export default function App() {
       await seedIfEmpty(PROJECTS_COLLECTION, projects);
       if (canceled) return;
       unsub = subscribeToCollection(PROJECTS_COLLECTION, (items) => {
-        if (!canceled && items.length > 0) setProjects(items);
+        if (!canceled && items.length > 0) setProjects(normalizeProjects(items));
       });
     })();
     return () => { canceled = true; if (unsub) unsub(); };
@@ -101,7 +128,7 @@ export default function App() {
       await seedIfEmpty(STAFF_COLLECTION, staff);
       if (canceled) return;
       unsub = subscribeToCollection(STAFF_COLLECTION, (items) => {
-        if (!canceled && items.length > 0) setStaff(items);
+        if (!canceled && items.length > 0) setStaff(normalizeStaffMembers(items));
       });
     })();
     return () => { canceled = true; if (unsub) unsub(); };
@@ -114,7 +141,8 @@ export default function App() {
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      return ROLE_LIST.includes(parsed?.role) ? parsed.role : null;
+      const normalizedRole = normalizeRole(parsed?.role);
+      return ROLE_LIST.includes(normalizedRole) ? normalizedRole : null;
     } catch {
       return null;
     }
@@ -156,6 +184,7 @@ export default function App() {
   const canViewKpi = KPI_ALLOWED_ROLES.includes(currentRole);
   const canManageStaff = STAFF_ADMIN_ROLES.includes(currentRole);
   const canSeeKaientaiQuest = KAIENTAI_QUEST_ROLES.includes(currentRole);
+  const isQuestView = currentTab === 'quest' && canSeeKaientaiQuest && !selectedProject;
   // ロール切替時にアクセス権がないタブはダッシュボードに戻す
   React.useEffect(() => {
     if (!canViewKpi && currentTab === 'kpi') setCurrentTab('dashboard');
@@ -180,21 +209,24 @@ export default function App() {
     deleteDocument(STAFF_COLLECTION, id);
   };
 
-  const handleAddProject = (projectData) => {
-    const newProject = {
-      id: `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`,
-      name: projectData.name,
+  const handleAddProject = async (projectData) => {
+    const baseProject = {
+      name: stripProjectHonorific(projectData.name),
       status: '案件発掘',
       startDate: new Date().toISOString().split('T')[0],
       expectedCloseDate: '',
       rank: 'B',
       salesPattern: projectData.salesPattern,
+      facilityType: normalizeFacilityType(projectData.facilityType),
+      hasIctHearingSheet: false,
       updatedAt: new Date().toISOString(),
       summary: '',
       picSetup: '',
-      picCaremax: '',
+      picCaremax: projectData.picCaremax,
+      picCaremaxStaffNumber: projectData.picCaremaxStaffNumber,
       endUser: {
         companyName: projectData.companyName,
+        prefecture: normalizePrefecture(projectData.prefecture),
         retailerName: '',
         department: '',
         contact: '',
@@ -205,18 +237,43 @@ export default function App() {
       phaseDetails: {},
       logs: []
     };
-    setProjects(prev => [...prev, newProject]);
-    saveDocument(PROJECTS_COLLECTION, newProject.id, newProject);
+    const createdProject = await createProjectDocument(baseProject, projects);
+    if (!createdProject) return;
+
+    setProjects(prev => (
+      prev.some((project) => project.id === createdProject.id)
+        ? prev.map((project) => project.id === createdProject.id ? createdProject : project)
+        : [...prev, createdProject]
+    ));
   };
 
-  const handleUpdateProject = (updatedProject) => {
-    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-    saveDocument(PROJECTS_COLLECTION, updatedProject.id, updatedProject);
+  const handleUpdateProject = async (updatedProject) => {
+    const normalizedProject = normalizeProjectRecord(updatedProject);
+    const previousProject = projects.find((project) => project.id === updatedProject.id);
+    setProjects(prev => prev.map(p => p.id === normalizedProject.id ? normalizedProject : p));
+    const savedProject = await saveProjectDocument(normalizedProject.id, normalizedProject);
+    if (!savedProject && previousProject) {
+      setProjects(prev => prev.map((project) => (
+        project.id === previousProject.id ? previousProject : project
+      )));
+      return;
+    }
+
+    if (savedProject) {
+      setProjects(prev => prev.map((project) => (
+        project.id === savedProject.id ? savedProject : project
+      )));
+    }
   };
 
-  const handleDeleteProject = (projectId) => {
+  const handleDeleteProject = async (projectId) => {
+    const previousProjects = projects;
     setProjects(prev => prev.filter(p => p.id !== projectId));
-    deleteDocument(PROJECTS_COLLECTION, projectId);
+    const deleted = await deleteProjectDocument(projectId);
+    if (!deleted) {
+      setProjects(previousProjects);
+      return;
+    }
     // 削除した案件が選択中なら詳細を閉じてダッシュボードへ戻る
     if (selectedProjectId === projectId) setSelectedProjectId(null);
   };
@@ -232,26 +289,26 @@ export default function App() {
   return (
     <ToastProvider>
     <AssistProvider enabled={assistMode}>
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="cm-app min-h-screen">
       {/* トップナビゲーション */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+      <div className={`cm-topbar border-b sticky top-0 z-40 ${isQuestView ? 'hidden sm:block' : ''}`}>
+        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-1 min-w-0 flex-1 overflow-x-auto no-scrollbar">
             <AssistTip text={"クリックでダッシュボード（案件一覧）に戻ります。\nどの画面からでもホームへ。"} side="bottom">
               <button
                 onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
-                className="shrink-0 mr-2 sm:mr-6 -mt-1 sm:-mt-3 hover:opacity-80 transition-opacity focus:outline-none"
+                className="shrink-0 mr-2 sm:mr-7 hover:opacity-70 transition-opacity focus:outline-none"
                 aria-label="CM Force ホームへ"
               >
-                <Logo className="h-9 sm:h-14 w-auto" />
+                <Logo className="h-9 sm:h-11 w-auto" />
               </button>
             </AssistTip>
             {!selectedProject && (
-              <>
+              <div className="hidden sm:flex items-center space-x-1">
                 <AssistTip text={"案件一覧・絞り込み・新規追加の起点。\nまずはここから案件全体の状況を確認しましょう。"} side="bottom">
                   <button
                     onClick={() => setCurrentTab('dashboard')}
-                    className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ${currentTab === 'dashboard' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ${currentTab === 'dashboard' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
                     <span className="sm:hidden">ホーム</span>
                     <span className="hidden sm:inline">ダッシュボード</span>
@@ -261,7 +318,7 @@ export default function App() {
                   <AssistTip text={"全社/担当者別の数字（受注・売上・進捗ファネル）を一覧。\n月次レビューや戦略会議の前に開いてください。"} side="bottom">
                     <button
                       onClick={() => setCurrentTab('kpi')}
-                      className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'kpi' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'kpi' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                       aria-label="ケアマックス KPI"
                     >
                       <BarChart3 className="w-4 h-4 sm:mr-1.5" />
@@ -273,7 +330,7 @@ export default function App() {
                   <AssistTip text={"営業企画専用。担当者の追加・編集・部署変更ができます。\n新メンバー入社時に登録してください。"} side="bottom">
                     <button
                       onClick={() => setCurrentTab('staff')}
-                      className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'staff' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'staff' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                       aria-label="担当者管理"
                     >
                       <Users className="w-4 h-4 sm:mr-1.5" />
@@ -293,7 +350,7 @@ export default function App() {
                     </button>
                   </AssistTip>
                 )}
-              </>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -317,8 +374,8 @@ export default function App() {
               </button>
             </AssistTip>
             <span className="hidden md:inline text-xs font-semibold text-gray-400">ロール</span>
-            <AssistTip text={"現在のログインロール。閲覧/編集できる範囲が決まります。\n変更にはログアウトが必要です。"} side="bottom">
-              <span className="text-xs sm:text-sm font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 whitespace-nowrap">
+            <AssistTip text={"現在のログインロール。閲覧/編集できる範囲が決まります。\n変更にはログアウトが必要です。"} side="bottom" wrapClassName="hidden sm:inline-flex">
+              <span className="text-xs sm:text-sm font-bold text-gray-800 bg-white border border-gray-200 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 whitespace-nowrap">
                 {currentRole}
               </span>
             </AssistTip>
@@ -337,7 +394,11 @@ export default function App() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+      <div className={`cm-main max-w-[1440px] mx-auto ${
+        isQuestView
+          ? 'h-[100dvh] overflow-hidden p-0 sm:h-auto sm:overflow-visible sm:px-6 sm:py-10'
+          : 'px-3 pt-4 pb-24 sm:px-6 sm:py-10'
+      }`}>
         {selectedProject ? (
           <ProjectDetail
             project={selectedProject}
@@ -345,10 +406,12 @@ export default function App() {
             onUpdateProject={handleUpdateProject}
             onDeleteProject={canEdit ? handleDeleteProject : undefined}
             canEdit={canEdit}
+            currentRole={currentRole}
+            staff={staff}
           />
         ) : currentTab === 'quest' && canSeeKaientaiQuest ? (
-          <div className="-mx-6 -my-8 min-h-[calc(100vh-4rem)] bg-neutral-950">
-            <KaientaiQuest />
+          <div className="quest-app-host h-full min-h-[100dvh] bg-neutral-950 sm:-mx-6 sm:-my-8 sm:h-auto sm:min-h-[calc(100vh-4rem)]">
+            <KaientaiQuest projects={projects} staff={staff} />
           </div>
         ) : currentTab === 'kpi' && canViewKpi ? (
           <KpiView projects={projects} onSelectProject={setSelectedProjectId} />
@@ -357,6 +420,7 @@ export default function App() {
         ) : (
           <Dashboard
             projects={projects}
+            staff={staff}
             onSelectProject={setSelectedProjectId}
             onAddProject={handleAddProject}
             canViewProfit={canViewKpi}
@@ -366,6 +430,57 @@ export default function App() {
           />
         )}
       </div>
+
+      {currentTab !== 'quest' && (
+      <nav className="mobile-bottom-nav fixed inset-x-3 bottom-3 z-50 flex items-center gap-1 rounded-[20px] border border-black/10 bg-white/95 p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.16)] backdrop-blur-xl sm:hidden">
+        <button
+          type="button"
+          onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
+          className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl py-2 text-[9px] font-bold ${
+            currentTab === 'dashboard' ? 'bg-black text-white' : 'text-gray-500'
+          }`}
+        >
+          <Building className="mb-1 h-4 w-4" />
+          案件
+        </button>
+        {canViewKpi && (
+          <button
+            type="button"
+            onClick={() => { setSelectedProjectId(null); setCurrentTab('kpi'); }}
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl py-2 text-[9px] font-bold ${
+              !selectedProject && currentTab === 'kpi' ? 'bg-black text-white' : 'text-gray-500'
+            }`}
+          >
+            <BarChart3 className="mb-1 h-4 w-4" />
+            KPI
+          </button>
+        )}
+        {canManageStaff && (
+          <button
+            type="button"
+            onClick={() => { setSelectedProjectId(null); setCurrentTab('staff'); }}
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl py-2 text-[9px] font-bold ${
+              !selectedProject && currentTab === 'staff' ? 'bg-black text-white' : 'text-gray-500'
+            }`}
+          >
+            <Users className="mb-1 h-4 w-4" />
+            担当者
+          </button>
+        )}
+        {canSeeKaientaiQuest && (
+          <button
+            type="button"
+            onClick={() => { setSelectedProjectId(null); setCurrentTab('quest'); }}
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl py-2 text-[9px] font-bold ${
+              !selectedProject && currentTab === 'quest' ? 'bg-black text-white' : 'text-gray-500'
+            }`}
+          >
+            <Award className="mb-1 h-4 w-4" />
+            QUEST
+          </button>
+        )}
+      </nav>
+      )}
     </div>
     </AssistProvider>
     </ToastProvider>

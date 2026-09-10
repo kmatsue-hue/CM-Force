@@ -1,17 +1,20 @@
 import React from 'react';
-import { USERS_MASTER } from '../data/users.js';
+import { getClassEvolution, USERS_MASTER } from '../data/users.js';
 import { formatG, formatId } from '../utils/format.js';
-import { getBgColorByLevel, getBorderClassByLevel } from '../utils/userLevel.js';
 import DqWindow from '../ui/DqWindow.jsx';
-import PixelCharacter from '../ui/PixelCharacter.jsx';
+import CharacterIcon from '../ui/CharacterIcon.jsx';
 
 const UserProfileModal = ({ selectedUserProfile, user, dashboardData, onClose }) => {
   if (!selectedUserProfile) return null;
 
   const isSelf = selectedUserProfile === user.name;
-  const charInfo = isSelf
+  const rawCharInfo = isSelf
     ? { id: user.id, charType: user.charType, className: user.className, level: user.level }
     : USERS_MASTER[selectedUserProfile] || { id: 999, charType: 'hero', className: 'みならい', level: 1 };
+  const charInfo = {
+    ...rawCharInfo,
+    className: getClassEvolution(rawCharInfo.charType, rawCharInfo.level).name,
+  };
 
   const userData = dashboardData.users[selectedUserProfile] || { sales: 0, profit: 0 };
 
@@ -19,10 +22,11 @@ const UserProfileModal = ({ selectedUserProfile, user, dashboardData, onClose })
     <div className="fixed inset-0 flex items-center justify-center bg-black/80 z-50 p-4 animate-fadeIn">
       <DqWindow className="w-full max-w-sm relative pb-14" title="ぼうけんしゃ じょうほう">
         <div className="flex flex-col items-center mb-6 mt-2">
-          <div className={`p-3 rounded-[6px] mb-3 ${getBgColorByLevel(charInfo.level)} ${getBorderClassByLevel(charInfo.level)}`}>
-             <PixelCharacter type={charInfo.charType} size={80} className="animate-bounce-slow" />
-          </div>
+          <CharacterIcon type={charInfo.charType} level={charInfo.level} size={104} className="mb-4" animated />
           <div className="text-yellow-200 text-[13px]">{formatId(charInfo.id)}</div>
+          {charInfo.staffNumber && (
+            <div className="text-purple-200 text-[12px] font-mono">{charInfo.staffNumber}</div>
+          )}
           <div className="text-[19px] font-bold text-white mb-2">{selectedUserProfile}</div>
           <div className="text-[15px] text-gray-300">しょくぎょう: {charInfo.className}</div>
           <div className="text-[15px] text-gray-300">レベル: <span className="text-white">{charInfo.level}</span></div>
@@ -30,8 +34,8 @@ const UserProfileModal = ({ selectedUserProfile, user, dashboardData, onClose })
 
         <DqWindow title="ギルドでの こうけん" className="mb-4 text-[15px] leading-loose bg-black/50">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-gray-300">うりあげ</span>
-            <span>{formatG(userData.sales)}</span>
+            <span className="text-gray-300">うりあげ実績</span>
+            <span>{userData.sales > 0 ? formatG(userData.sales) : "—"}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-gray-300">りえき</span>

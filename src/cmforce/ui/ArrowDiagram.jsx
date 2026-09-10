@@ -7,6 +7,7 @@ import {
   KAIENTAI_SUB,
   MARGIN_BRANCH_PHASE,
   MARGIN_MERGE_PHASE,
+  WEB_MEETING_PHASE,
   isBranchablePattern,
   isMarginBranchablePattern,
 } from '../data/phases.js';
@@ -16,6 +17,7 @@ import { AssistTip } from './AssistMode.jsx';
 const PHASE_DESCRIPTIONS = {
   '案件発掘':         '見込み顧客や引き合いを最初に拾う段階。\n次の行動: 担当者・連絡先を案件メモに登録し、初回コンタクトを設定。',
   '案件スクリーニング': '予算・規模・本気度から進めるか判断する段階。\n次の行動: 案件ランク (A/B/C) を仮置き → ヒアリング項目を整理。',
+  [WEB_MEETING_PHASE]:   'WEB面談が可能か関係者へ確認を依頼する段階。\n次の行動: 専用ログに「依頼先」と「依内容」を必ず記録。',
   'EUとの商談':       'エンドユーザーと直接対話する段階。\n次の行動: 議事録をメモに残し「次回アクション日付」を活動ログに記録（進行に必須）。',
   '現地調査':         '導入予定先を実地で確認する段階。\n次の行動: 写真・図面リンクを添付、必要機材リストを作成。',
   '設計':            '構成・機器・配線を設計する段階。\n次の行動: 設計図 / 構成図のリンクを添付、社内レビュー予定を入れる。',
@@ -30,16 +32,16 @@ const phaseHint = (phase) => PHASE_DESCRIPTIONS[phase] ||
 
 // アローダイヤグラム（詳細画面用）
 // グループ定義:
-//   介援隊      → PHASES[0..1]  (案件発掘・案件スクリーニング)  青枠
-//   セットアップ → PHASES[2..8]  (EUとの商談〜一次保守)          朱色枠
+//   介援隊      → PHASES[0..2]  (案件発掘・案件スクリーニング・WEB面談可否)  青枠
+//   SOMPOケアソリューションズ → PHASES[3..9]  (EUとの商談〜一次保守)  朱色枠
 const PHASE_GROUPS = [
-  { label: '介援隊',      from: 0, to: 1, border: 'rgba(59,130,246,0.4)',  color: '#6b9fd4' },
-  { label: 'セットアップ', from: 2, to: 8, border: 'rgba(224,90,43,0.4)',   color: '#d4845a' },
+  { label: '介援隊',      from: 0, to: 2, border: 'rgba(59,130,246,0.4)',  color: '#6b9fd4' },
+  { label: 'SOMPOケアソリューションズ', from: 3, to: 9, border: 'rgba(224,90,43,0.4)', color: '#d4845a' },
 ];
 
 const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails, kaientaiFlow, marginFlow, marginSteps = [], salesPattern }) => {
   const currentIndex = PHASES.indexOf(currentPhase);
-  const N = PHASES.length; // 9
+  const N = PHASES.length;
   const subActive = !!kaientaiFlow?.active;
   const subCompleted = !!kaientaiFlow?.completed;
   const branchableHere = isBranchablePattern(salesPattern);
@@ -53,6 +55,8 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
   const marginBranchIdx = PHASES.indexOf(MARGIN_BRANCH_PHASE);
   const marginMergeIdx  = PHASES.indexOf(MARGIN_MERGE_PHASE);
   const showMarginRow   = marginBranchable && marginSteps.length > 0 && (marginActive || marginCompleted || currentIndex >= marginBranchIdx);
+  const isPatternOne = salesPattern?.includes('パターン1');
+  const marginFlowLabel = isPatternOne ? '利益計上サブフロー' : 'マージン支払サブフロー';
 
   const halfPct   = 100 / (2 * N);
   const progressW = (currentIndex / N) * 100;
@@ -91,8 +95,8 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                        color: branchOn ? '#c2410c' : '#94a3b8',
                      }}>
                   <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: branchOn ? '#f97316' : '#fed7aa' }} />
-                  マージン支払サブフロー
-                  {!isPair && <span className="ml-1 text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full">パターン②: ゴール</span>}
+                  {marginFlowLabel}
+                  {!isPair && <span className="ml-1 text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full">②分離: ゴール</span>}
                 </div>
 
                 {/* 水平線（pair の場合のみ。サブノード中心を貫通） */}
@@ -124,7 +128,9 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                     <AssistTip
                       key={mPh}
                       text={mPh === 'マージン支払'
-                        ? 'マージン支払フェーズ。\n金額・支払予定日を入力してから次へ進めます。'
+                        ? (isPatternOne
+                          ? '当社上乗せ利益の記録フェーズ。\n利益額と利益確定日を入力します。'
+                          : 'マージン支払フェーズ。\n金額・支払予定日を入力してから次へ進めます。')
                         : '販売店への支払フェーズ。\n振込/支払証憑のリンクを残しておくと後で楽です。'}
                       side="top"
                       wrapClassName="absolute"
@@ -148,7 +154,7 @@ const ArrowDiagram = ({ currentPhase, selectedPhase, onSelectPhase, phaseDetails
                         isCurrentM ? 'text-orange-700 font-bold' :
                         isDoneM    ? 'text-gray-700 font-semibold' : 'text-orange-400 font-medium',
                       ].join(' ')}>
-                        {mPh}
+                        {mPh === 'マージン支払' && isPatternOne ? '上乗せ利益' : mPh}
                       </div>
                       <div className="relative w-12 h-12 flex items-center justify-center">
                         {isCurrentM && (

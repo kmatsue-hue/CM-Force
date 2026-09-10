@@ -2,6 +2,237 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  font-family: Inter, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  color: #11110f;
+  background: #f6f6f3;
+  font-synthesis: none;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f6f6f3;
+  color: #11110f;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+.cm-app {
+  background:
+    radial-gradient(700px 260px at 58% 100%, rgba(42, 139, 255, .14), transparent 68%),
+    radial-gradient(540px 220px at 38% 100%, rgba(141, 69, 255, .13), transparent 68%),
+    #f6f6f3;
+  background-attachment: fixed;
+}
+
+.cm-topbar {
+  background: rgba(255, 255, 253, .9);
+  border-color: rgba(25, 25, 22, .1);
+  backdrop-filter: blur(18px);
+}
+
+.cm-main {
+  min-height: calc(100vh - 64px);
+}
+
+.cm-app :is(input, select, textarea) {
+  border-color: #deded9;
+  background-color: #fafaf8;
+}
+
+.cm-app :is(input, select, textarea):focus {
+  border-color: #171715;
+  box-shadow: 0 0 0 3px rgba(23, 23, 21, .09);
+  outline: none;
+}
+
+.cm-app button.bg-purple-600,
+.cm-app button.bg-gradient-to-br.from-purple-600 {
+  background: #11110f;
+  border-color: #11110f;
+  color: #fff;
+  box-shadow: none;
+}
+
+.cm-app button.bg-purple-600:hover,
+.cm-app button.bg-gradient-to-br.from-purple-600:hover {
+  background: #2b2b28;
+}
+
+.cm-app .text-purple-700 {
+  color: #292927;
+}
+
+.cm-app .bg-purple-50 {
+  background-color: #f1f1ee;
+}
+
+.cm-app table thead {
+  letter-spacing: .025em;
+}
+
+.cm-app table tbody tr {
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.dashboard-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 172px;
+  border: 1px solid #e4e4df;
+  border-radius: 24px;
+  background: rgba(255, 255, 253, .82);
+  padding: clamp(22px, 3.6vw, 42px);
+}
+
+.dashboard-hero::after {
+  position: absolute;
+  right: -105px;
+  bottom: -150px;
+  width: 390px;
+  height: 220px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 38% 45%, rgba(115, 64, 255, .5), transparent 46%),
+    radial-gradient(circle at 70% 38%, rgba(35, 145, 255, .55), transparent 50%);
+  filter: blur(34px);
+  content: "";
+  opacity: .65;
+  pointer-events: none;
+}
+
+.auralis-login {
+  background:
+    radial-gradient(620px 250px at 55% 103%, rgba(43, 145, 255, .35), transparent 62%),
+    radial-gradient(500px 230px at 40% 103%, rgba(133, 59, 255, .3), transparent 62%),
+    #f7f7f4;
+}
+
+@media (max-width: 639px) {
+  .cm-topbar {
+    position: sticky;
+  }
+
+  .cm-topbar > div {
+    height: 56px;
+  }
+
+  .cm-main {
+    min-height: calc(100dvh - 56px);
+  }
+
+  .mobile-bottom-nav {
+    bottom: max(.75rem, env(safe-area-inset-bottom));
+  }
+
+  .cm-card {
+    border-radius: 18px;
+  }
+
+  .dashboard-hero {
+    min-height: 142px;
+    border-radius: 18px;
+    padding: 20px 18px;
+  }
+
+  .dashboard-hero h1 {
+    font-size: 1.92rem;
+    line-height: .96;
+  }
+
+  .dashboard-hero p:last-child {
+    margin-top: 10px;
+    font-size: .7rem;
+    line-height: 1.25rem;
+  }
+
+  .dashboard-hero::after {
+    right: -150px;
+    bottom: -150px;
+    opacity: .5;
+  }
+
+  .mobile-page-hero,
+  .project-hero {
+    border-radius: 20px;
+    padding: 24px 20px;
+  }
+
+  .mobile-page-hero h1 {
+    font-size: 2.35rem;
+    line-height: .98;
+  }
+
+  .mobile-page-hero > button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .project-hero h1 {
+    font-size: 1.75rem;
+    line-height: 1.08;
+  }
+
+  .project-hero > div:last-child button {
+    padding: 8px 12px;
+    font-size: .75rem;
+  }
+
+  .auralis-login {
+    padding: 0;
+  }
+
+  .auralis-login > div {
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .auralis-login main {
+    gap: 32px;
+    padding: 40px 20px;
+  }
+
+  .auralis-login main h1 {
+    font-size: 3rem;
+  }
+
+  .cm-app :is(input, select, textarea) {
+    font-size: 16px;
+  }
+
+  .cm-app .mobile-sheet {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .cm-app .mobile-sheet > :first-child {
+    width: 100%;
+    max-height: 92dvh;
+    margin: 0;
+    border-radius: 22px 22px 0 0;
+    overflow-y: auto;
+  }
+}
+
 /* スクロールバーを隠すユーティリティ（横スクロール可能なナビ等に使用） */
 .no-scrollbar {
   -ms-overflow-style: none;
@@ -37,4 +268,837 @@
 
 .duration-500 {
   animation-duration: 500ms;
+}
+
+.character-icon-aura,
+.character-icon-shell,
+.character-icon-shadow,
+.character-icon-body,
+.character-icon-leg,
+.character-icon-glint {
+  will-change: transform, opacity;
+}
+
+.character-icon-aura {
+  animation: character-icon-aura 1.3s ease-in-out infinite;
+}
+
+.character-icon-shell {
+  animation: character-icon-shell 1.05s steps(2, end) infinite;
+}
+
+.character-icon-shadow {
+  transform-origin: center center;
+  animation: character-icon-shadow 1.05s steps(2, end) infinite;
+}
+
+.character-icon-body {
+  animation: character-icon-body 0.78s steps(2, end) infinite;
+}
+
+.character-icon-leg {
+  transform-box: fill-box;
+}
+
+.character-icon-leg--left {
+  animation: character-icon-leg-left 0.78s steps(2, end) infinite;
+}
+
+.character-icon-leg--right {
+  animation: character-icon-leg-right 0.78s steps(2, end) infinite;
+}
+
+.character-icon-glint {
+  animation: character-icon-glint 3.2s linear infinite;
+}
+
+.character-icon-evolution-halo {
+  animation: character-icon-evolution-halo 6s linear infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.character-icon-evolution-sparkle {
+  animation: character-icon-evolution-sparkle 1.9s steps(4, end) infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+@keyframes character-icon-aura {
+  0%, 100% {
+    opacity: 0.58;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes character-icon-shell {
+  0%, 100% {
+    transform: translateY(0) scale(0.985);
+  }
+  50% {
+    transform: translateY(-1px) scale(1.02);
+  }
+}
+
+@keyframes character-icon-shadow {
+  0%, 100% {
+    opacity: 0.24;
+    transform: scaleX(0.84);
+  }
+  50% {
+    opacity: 0.16;
+    transform: scaleX(1.04);
+  }
+}
+
+@keyframes character-icon-body {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(0, -0.55px) scale(1.02);
+  }
+}
+
+@keyframes character-icon-leg-left {
+  0%, 100% {
+    transform: translate(-0.1px, 0);
+  }
+  50% {
+    transform: translate(0.68px, 0.7px);
+  }
+}
+
+@keyframes character-icon-leg-right {
+  0%, 100% {
+    transform: translate(0.1px, 0.7px);
+  }
+  50% {
+    transform: translate(-0.68px, 0);
+  }
+}
+
+@keyframes character-icon-glint {
+  0%, 100% {
+    opacity: 0.22;
+    transform: translateX(-10%) rotate(-22deg);
+  }
+  14% {
+    opacity: 0.78;
+    transform: translateX(10%) rotate(-22deg);
+  }
+  28% {
+    opacity: 0.2;
+    transform: translateX(18%) rotate(-22deg);
+  }
+}
+
+@keyframes character-icon-evolution-halo {
+  0% {
+    transform: rotate(0deg) scale(0.96);
+    opacity: 0.6;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(360deg) scale(0.96);
+    opacity: 0.6;
+  }
+}
+
+@keyframes character-icon-evolution-sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.35) rotate(0deg);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.2) rotate(45deg);
+  }
+  65% {
+    opacity: 0.75;
+    transform: scale(0.78) rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-icon-aura,
+  .character-icon-shell,
+  .character-icon-shadow,
+  .character-icon-body,
+  .character-icon-leg,
+  .character-icon-glint,
+  .character-icon-evolution-halo,
+  .character-icon-evolution-sparkle {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+@media (pointer: fine) and (min-width: 640px) {
+  .bomb-touch-controls {
+    display: none;
+  }
+
+  .bomb-keyboard-help {
+    display: block;
+  }
+
+  .bomb-arena,
+  .bomb-game-width {
+    width: min(calc(100vw - 48px), calc((100dvh - 210px) * 13 / 11), 1040px) !important;
+    max-width: none !important;
+  }
+}
+
+.bomb-game-width,
+.bomb-arena {
+  width: min(calc(100vw - 16px), 420px);
+}
+
+.bomb-game-shell {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(98, 126, 255, 0.75) 0%, rgba(39, 62, 158, 0.38) 28%, transparent 52%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 12px),
+    linear-gradient(180deg, #101d62 0%, #07113f 48%, #020617 100%);
+}
+
+.bomb-game-shell::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 7%, transparent 93%, rgba(0, 0, 0, 0.2)),
+    radial-gradient(circle at 50% 45%, transparent 52%, rgba(0, 0, 0, 0.33) 100%);
+}
+
+.bomb-screen-grain::after {
+  position: absolute;
+  z-index: 35;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: 0.14;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08) 0,
+    rgba(255, 255, 255, 0.08) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  mix-blend-mode: soft-light;
+}
+
+.bomb-floor-cell {
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.035),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.bomb-floor-cell--a {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--bomb-floor-a) 86%, white) 0%, var(--bomb-floor-a) 48%, var(--bomb-floor-dark) 145%);
+}
+
+.bomb-floor-cell--b {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--bomb-floor-b) 88%, white) 0%, var(--bomb-floor-b) 48%, var(--bomb-floor-dark) 145%);
+}
+
+.bomb-n64-hud {
+  position: relative;
+  overflow: hidden;
+}
+
+.bomb-n64-hud::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(110deg, transparent 0 34%, rgba(255, 255, 255, 0.14) 42%, transparent 51%),
+    radial-gradient(circle at 50% -40%, rgba(255, 255, 255, 0.2), transparent 55%);
+  mix-blend-mode: screen;
+}
+
+.bomb-grid-actor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / 13);
+  height: calc(100% / 11);
+  will-change: transform;
+}
+
+.bomb-player-actor {
+  z-index: 22;
+  transition: transform 62ms cubic-bezier(0.2, 0.82, 0.3, 1);
+}
+
+.bomb-enemy-actor {
+  z-index: 20;
+  transition: transform var(--bomb-step-ms, 350ms) cubic-bezier(0.2, 0.72, 0.25, 1);
+}
+
+.bomb-slide-actor {
+  z-index: 19;
+  transition: transform var(--bomb-slide-ms, 90ms) linear;
+  will-change: transform;
+}
+
+.bomb-cpu-actor {
+  z-index: 21;
+  transition: transform var(--bomb-cpu-step-ms, 420ms) cubic-bezier(0.16, 0.7, 0.22, 1);
+}
+
+.bomb-cpu-glow {
+  opacity: 0.6;
+  background: radial-gradient(circle, rgba(248, 113, 113, 0.72), rgba(220, 38, 38, 0.2) 46%, transparent 70%);
+  animation: bomb-cpu-pulse 720ms ease-in-out infinite alternate;
+}
+
+.bomb-player-glow {
+  opacity: 0.42;
+  background: radial-gradient(circle, var(--bomb-stage-glow) 0%, transparent 68%);
+  filter: blur(2px);
+  animation: bomb-player-glow 920ms ease-in-out infinite alternate;
+}
+
+.bomb-enemy-body {
+  transform-origin: center bottom;
+  animation: bomb-enemy-float 520ms ease-in-out infinite alternate;
+}
+
+.bomb-solid-block::after,
+.bomb-crate::after {
+  position: absolute;
+  inset: 7%;
+  border-radius: inherit;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.2), transparent 27% 72%, rgba(0, 0, 0, 0.2));
+}
+
+.bomb-solid-block {
+  filter: saturate(1.14);
+}
+
+.bomb-crate {
+  filter: saturate(1.12) contrast(1.04);
+}
+
+.bomb-solid-block--nature {
+  border-color: #12351f;
+  border-radius: 42% 48% 38% 46%;
+  background:
+    radial-gradient(circle at 35% 30%, #bbf7d0 0 7%, transparent 8%),
+    radial-gradient(circle at 38% 34%, #4ade80 0 28%, #15803d 54%, #14532d 78%);
+  box-shadow:
+    inset 3px 3px 3px rgba(255, 255, 255, 0.3),
+    inset -4px -4px 4px rgba(0, 0, 0, 0.38),
+    0 4px 2px rgba(5, 46, 22, 0.62);
+}
+
+.bomb-solid-block--town {
+  border-color: #111827;
+  background:
+    linear-gradient(90deg, transparent 47%, rgba(15, 23, 42, 0.5) 48% 52%, transparent 53%),
+    linear-gradient(0deg, transparent 47%, rgba(15, 23, 42, 0.45) 48% 52%, transparent 53%),
+    linear-gradient(145deg, #cbd5e1, #64748b 52%, #334155);
+}
+
+.bomb-solid-block--warehouse {
+  border-color: #020617;
+  background:
+    radial-gradient(circle at 15% 16%, #dbeafe 0 4%, #334155 5% 8%, transparent 9%),
+    radial-gradient(circle at 85% 84%, #dbeafe 0 4%, #334155 5% 8%, transparent 9%),
+    linear-gradient(145deg, #7890f0 0%, #3b55bf 38%, #101d61 100%);
+}
+
+.bomb-crate--nature {
+  border-color: #422006;
+  border-radius: 26%;
+  background: repeating-radial-gradient(ellipse at 48% 18%, #fde68a 0 2px, #b45309 3px 5px, #78350f 6px 8px);
+}
+
+.bomb-crate--town {
+  border-color: #450a0a;
+  background:
+    linear-gradient(90deg, transparent 46%, rgba(69, 10, 10, 0.72) 47% 53%, transparent 54%),
+    linear-gradient(0deg, transparent 46%, rgba(69, 10, 10, 0.68) 47% 53%, transparent 54%),
+    linear-gradient(145deg, #fb7185, #be123c 52%, #881337);
+}
+
+.bomb-crate--warehouse {
+  border-color: #3b1706;
+  background: linear-gradient(145deg, #fbbf24 0%, #c25b14 48%, #6f260d 100%);
+}
+
+.bomb-cell-decor {
+  position: absolute;
+  z-index: 1;
+  display: none;
+  pointer-events: none;
+  opacity: 0.62;
+}
+
+.bomb-cell-decor.is-visible {
+  display: block;
+}
+
+.bomb-cell-decor--nature {
+  bottom: 10%;
+  left: 20%;
+  width: 55%;
+  height: 30%;
+  background:
+    linear-gradient(70deg, transparent 38%, #bbf7d0 40% 47%, transparent 49%) 0 100% / 38% 100% no-repeat,
+    linear-gradient(105deg, transparent 42%, #22c55e 44% 51%, transparent 53%) 48% 100% / 42% 82% no-repeat,
+    linear-gradient(78deg, transparent 42%, #86efac 44% 51%, transparent 53%) 100% 100% / 38% 92% no-repeat;
+}
+
+.bomb-cell-decor--town {
+  right: 10%;
+  bottom: 12%;
+  width: 26%;
+  height: 18%;
+  border: 1px solid rgba(15, 23, 42, 0.5);
+  background: repeating-linear-gradient(90deg, #1e293b 0 1px, #64748b 1px 3px);
+  box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.18);
+}
+
+.bomb-cell-decor--warehouse {
+  right: 13%;
+  bottom: 14%;
+  width: 12%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #94a3b8;
+  box-shadow:
+    0 0 0 1px #0f172a,
+    -14px -8px 0 -1px rgba(148, 163, 184, 0.6);
+}
+
+.bomb-arena--nature {
+  border-color: #dcfce7;
+  box-shadow:
+    inset 0 0 0 2px #14532d,
+    5px 7px 0 #020617,
+    0 0 30px rgba(74, 222, 128, 0.38);
+}
+
+.bomb-arena--town {
+  border-color: #dbeafe;
+  box-shadow:
+    inset 0 0 0 2px #334155,
+    5px 7px 0 #020617,
+    0 0 30px rgba(244, 114, 182, 0.3);
+}
+
+.bomb-arena--warehouse {
+  border-color: #fef3c7;
+  box-shadow:
+    inset 0 0 0 2px #78350f,
+    5px 7px 0 #020617,
+    0 0 30px rgba(251, 191, 36, 0.35);
+}
+
+.bomb-enemy-wing {
+  animation: bomb-enemy-wing 260ms ease-in-out infinite alternate;
+}
+
+.bomb-control-button {
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.28), transparent 24%),
+    linear-gradient(145deg, #334eb4, #101d69 65%, #050b2c);
+  box-shadow:
+    inset 2px 2px 2px rgba(255, 255, 255, 0.22),
+    inset -3px -3px 3px rgba(0, 0, 0, 0.42),
+    3px 3px 0 #020617;
+}
+
+.bomb-dpad-key {
+  border-color: #080912;
+  color: rgba(255, 255, 255, 0.38);
+  background:
+    radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.13), transparent 24%),
+    linear-gradient(145deg, #353746, #181925 58%, #090a10);
+  box-shadow:
+    inset 2px 2px 2px rgba(255, 255, 255, 0.14),
+    inset -3px -3px 3px rgba(0, 0, 0, 0.65),
+    2px 3px 2px rgba(0, 0, 0, 0.45);
+}
+
+.bomb-action-a,
+.bomb-action-b {
+  border-color: #62123e;
+  color: #fce7f3;
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.42), transparent 19%),
+    linear-gradient(145deg, #d24b91, #9d174d 58%, #5b1137);
+  box-shadow:
+    inset 3px 3px 4px rgba(255, 255, 255, 0.26),
+    inset -5px -5px 5px rgba(66, 4, 36, 0.56),
+    3px 5px 3px rgba(55, 16, 42, 0.48);
+  text-shadow: 1px 2px 0 #500724;
+}
+
+.bomb-action-b {
+  filter: brightness(0.92);
+}
+
+.bomb-handheld-mini {
+  border: 1px solid #4b4d57;
+  background: linear-gradient(180deg, #7b7e86, #3f4149);
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.35),
+    1px 2px 1px rgba(0, 0, 0, 0.32);
+}
+
+.bomb-handheld-mini:active {
+  transform: translateY(1px);
+  box-shadow: inset 1px 2px 2px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 360px) {
+  .bomb-handheld-panel {
+    gap: 8px !important;
+    padding-right: 8px !important;
+    padding-left: 8px !important;
+  }
+
+  .bomb-dpad {
+    width: 138px !important;
+    padding: 8px !important;
+  }
+
+  .bomb-dpad-key {
+    height: 37px !important;
+  }
+
+  .bomb-action-a {
+    width: 58px !important;
+    height: 58px !important;
+  }
+
+  .bomb-action-b {
+    width: 50px !important;
+    height: 50px !important;
+  }
+}
+
+@keyframes bomb-player-glow {
+  from {
+    opacity: 0.22;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 0.52;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes bomb-cpu-pulse {
+  from { opacity: 0.3; transform: scale(0.82); }
+  to { opacity: 0.72; transform: scale(1.12); }
+}
+
+@keyframes bomb-enemy-wing {
+  from {
+    transform: rotate(-8deg) scaleY(0.78);
+  }
+  to {
+    transform: rotate(9deg) scaleY(1.08);
+  }
+}
+
+@keyframes bomb-enemy-float {
+  from {
+    transform: translateY(1px) rotate(-1.5deg) scaleY(0.97);
+  }
+  to {
+    transform: translateY(-2px) rotate(1.5deg) scaleY(1.03);
+  }
+}
+
+.bomb-explosion-cell {
+  contain: layout paint style;
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.88), rgba(249, 115, 22, 0.66) 45%, rgba(220, 38, 38, 0.18) 72%, transparent 74%);
+  animation: bomb-explosion-flash 400ms ease-out both;
+}
+
+.bomb-explosion-core {
+  will-change: transform, opacity;
+  animation: bomb-explosion-core 400ms cubic-bezier(0.12, 0.62, 0.22, 1) both;
+}
+
+.bomb-explosion-ring {
+  will-change: transform, opacity;
+  animation: bomb-explosion-ring 400ms ease-out both;
+}
+
+.bomb-explosion-debris {
+  will-change: transform, opacity;
+  animation: bomb-explosion-debris 360ms ease-out both;
+}
+
+.bomb-grid-effect {
+  top: 0;
+  left: 0;
+  width: calc(100% / 13);
+  height: calc(100% / 11);
+  contain: layout style;
+}
+
+.bomb-crate-shard {
+  position: absolute;
+  width: 25%;
+  height: 18%;
+  border: 1px solid rgba(45, 20, 5, 0.65);
+  will-change: transform, opacity;
+  animation: bomb-crate-shard-fly 560ms cubic-bezier(0.18, 0.62, 0.28, 1) both;
+}
+
+.bomb-crate-shard--nature {
+  border-radius: 40%;
+  background: linear-gradient(145deg, #fde68a, #92400e);
+}
+
+.bomb-crate-shard--town {
+  background: linear-gradient(145deg, #fb7185, #881337);
+}
+
+.bomb-crate-shard--warehouse {
+  background: linear-gradient(145deg, #fbbf24, #7c2d12);
+}
+
+.bomb-crate-dust {
+  background: radial-gradient(circle, rgba(254, 215, 170, 0.75), rgba(180, 83, 9, 0.24) 50%, transparent 72%);
+  will-change: transform, opacity;
+  animation: bomb-crate-dust-puff 420ms ease-out both;
+}
+
+.bomb-enemy-pop {
+  --pop-light: #a7f3d0;
+  --pop-color: #10b981;
+  --pop-dark: #065f46;
+}
+
+.bomb-enemy-pop--1 {
+  --pop-light: #e2e8f0;
+  --pop-color: #38bdf8;
+  --pop-dark: #334155;
+}
+
+.bomb-enemy-pop--2 {
+  --pop-light: #f5d0fe;
+  --pop-color: #a855f7;
+  --pop-dark: #581c87;
+}
+
+.bomb-enemy-pop--3 {
+  --pop-light: #fbcfe8;
+  --pop-color: #ec4899;
+  --pop-dark: #701a75;
+}
+
+.bomb-enemy-pop-core {
+  background: radial-gradient(circle at 34% 24%, #fff 0 8%, var(--pop-light) 9% 25%, var(--pop-color) 48%, var(--pop-dark) 78%);
+  will-change: transform, opacity;
+  animation: bomb-enemy-balloon-pop 330ms cubic-bezier(0.16, 0.72, 0.26, 1) both;
+}
+
+.bomb-enemy-pop-ring {
+  border-color: var(--pop-light);
+  will-change: transform, opacity;
+  animation: bomb-enemy-pop-ring 430ms ease-out both;
+}
+
+.bomb-enemy-pop-particle {
+  position: absolute;
+  width: 15%;
+  height: 15%;
+  border-radius: 50% 50% 50% 12%;
+  background: var(--pop-color);
+  will-change: transform, opacity;
+  animation: bomb-enemy-pop-particle 510ms cubic-bezier(0.15, 0.67, 0.22, 1) both;
+}
+
+.bomb-enemy-pop-particle:nth-child(even) {
+  border-radius: 50%;
+  background: var(--pop-light);
+}
+
+.bomb-arena-shake::before {
+  position: absolute;
+  z-index: 34;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: rgba(255, 244, 190, 0.34);
+  animation: bomb-impact-flash 180ms ease-out both;
+}
+
+@keyframes bomb-explosion-flash {
+  0% { opacity: 0.3; }
+  20% { opacity: 1; }
+  100% { opacity: 0.42; }
+}
+
+@keyframes bomb-explosion-core {
+  0% { opacity: 1; transform: scale(0.28); }
+  34% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+@keyframes bomb-explosion-ring {
+  0% { opacity: 0.95; transform: scale(0.18); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+@keyframes bomb-explosion-debris {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate3d(12px, -13px, 0) rotate(100deg); }
+}
+
+@keyframes bomb-impact-flash {
+  0% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+@keyframes bomb-crate-shard-fly {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0) scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--burst-x), var(--burst-y), 0) rotate(var(--burst-rotate)) scale(0.62);
+  }
+}
+
+@keyframes bomb-crate-dust-puff {
+  0% { opacity: 0.75; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+
+@keyframes bomb-enemy-balloon-pop {
+  0% { opacity: 1; transform: scale(0.72); }
+  48% { opacity: 1; transform: scale(1.38); }
+  62% { opacity: 0.9; transform: scale(1.5, 0.3); }
+  100% { opacity: 0; transform: scale(1.75, 0.08); }
+}
+
+@keyframes bomb-enemy-pop-ring {
+  0% { opacity: 0.92; transform: scale(0.55); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+
+@keyframes bomb-enemy-pop-particle {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--burst-x), var(--burst-y), 0) rotate(160deg) scale(0.4);
+  }
+}
+
+@keyframes bomb-fuse-pulse {
+  0%, 100% {
+    transform: scale(0.92);
+    filter: brightness(0.92);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.35) drop-shadow(0 0 4px rgba(251, 146, 60, 0.75));
+  }
+}
+
+.bomb-fuse-pulse {
+  animation: bomb-fuse-pulse 420ms steps(2, end) infinite;
+}
+
+@keyframes bomb-ember {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(8px, -9px) scale(0.35);
+  }
+}
+
+.bomb-ember {
+  animation: bomb-ember 360ms steps(4, end) infinite;
+}
+
+@keyframes bomb-danger-flash {
+  0%, 48% {
+    opacity: 1;
+    text-shadow: 0 0 7px #ef4444;
+  }
+  49%, 100% {
+    opacity: 0.38;
+    text-shadow: none;
+  }
+}
+
+.bomb-danger-flash {
+  animation: bomb-danger-flash 620ms steps(1, end) infinite;
+}
+
+@keyframes bomb-item-card {
+  0%, 100% {
+    transform: translateY(0) scale(0.94);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.03);
+    filter: brightness(1.28);
+  }
+}
+
+.bomb-item-card {
+  animation: bomb-item-card 850ms steps(3, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bomb-arena-shake,
+  .bomb-arena-shake::before,
+  .bomb-fuse-pulse,
+  .bomb-ember,
+  .bomb-danger-flash,
+  .bomb-item-card,
+  .bomb-player-glow,
+  .bomb-cpu-glow,
+  .bomb-enemy-body,
+  .bomb-enemy-wing,
+  .bomb-explosion-cell,
+  .bomb-explosion-core,
+  .bomb-explosion-ring,
+  .bomb-explosion-debris,
+  .bomb-crate-shard,
+  .bomb-crate-dust,
+  .bomb-enemy-pop-core,
+  .bomb-enemy-pop-ring,
+  .bomb-enemy-pop-particle {
+    animation: none !important;
+  }
+
+  .bomb-grid-actor {
+    transition: none !important;
+  }
 }

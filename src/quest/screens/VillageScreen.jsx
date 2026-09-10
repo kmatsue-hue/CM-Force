@@ -13,12 +13,11 @@ import {
 } from '../data/villageMilestones.js';
 import { formatG } from '../utils/format.js';
 import {
-  getBgColorByLevel,
-  getBorderClassByLevel,
   getCharInfo as getCharInfoUtil,
 } from '../utils/userLevel.js';
 import { blendDaySunsetNight } from '../utils/colorMath.js';
 import DqWindow from '../ui/DqWindow.jsx';
+import CharacterIcon from '../ui/CharacterIcon.jsx';
 import PixelCharacter from '../ui/PixelCharacter.jsx';
 
 const VillageScreen = ({
@@ -152,8 +151,6 @@ const VillageScreen = ({
     const unlockedAdvancedMilestoneFeatures = milestoneFeatures.filter(
       (feature) => feature.threshold >= ADVANCED_VILLAGE_MILESTONE_START && isMilestoneUnlocked(feature.threshold)
     );
-    const advancedDevelopmentCount = unlockedAdvancedMilestoneFeatures.length;
-    const advancedDevelopmentTotal = ADVANCED_VILLAGE_DEVELOPMENTS.length;
     const advancedIllustrationSlots = ADVANCED_VILLAGE_DEVELOPMENTS.map((_, idx) => {
       const row = Math.floor(idx / 6);
       const col = idx % 6;
@@ -252,10 +249,6 @@ const VillageScreen = ({
       }))
     ];
     const kairoPopulation = totalHouses * 5 + totalMidrise * 18 + totalHighrise * 36;
-    const kairoJobs = totalFacilities * 16 + totalMidrise * 10 + totalHighrise * 18;
-    const kairoSatisfaction = totalVillagePoints > 0
-      ? Math.min(99, 40 + unlockedMilestones.length * 2 + Math.floor(totalMidrise / 2))
-      : 0;
     const hasVillageDevelopment = totalVillagePoints > 0;
     const villageProfitLabel = totalVillageProfit > 0 ? formatG(totalVillageProfit) : "—";
     const villageTax = totalVillageProfit > 0 ? Math.round(totalVillageProfit * 0.03 + kairoPopulation * 120) : 0;
@@ -619,41 +612,50 @@ const VillageScreen = ({
     }));
 
     return (
-      <div className="space-y-4 animate-fadeIn p-4 pb-20">
-        <DqWindow title="かいえんたい村">
-          <div className="mt-1 mb-3 text-[13px] leading-relaxed">
-            りえき <span className="text-yellow-200">{villageProfitLabel}</span> / {formatG(MAX_VILLAGE_PROFIT_TARGET)}
-            <span className="ml-2 text-gray-300">({unlockedMilestones.length} / {VILLAGE_MILESTONES.length} イベント)</span>
-          </div>
-          <div className="mb-3 text-[11px] text-gray-300">
-            げんざい: <span className="text-yellow-200">{villagePhaseLabel}</span>
-            {nextMilestone && (
-              <span className="ml-2">
-                つぎ: <span className="text-white">{Math.floor(nextMilestone.threshold / 10000)}万G で {nextMilestone.title}</span>
+      <div className="rpg-village-screen space-y-4 animate-fadeIn p-3 pb-20">
+        <DqWindow title="かいえんたい地方">
+          <div className="rpg-area-summary mt-1 mb-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-[2px] border-white/80 bg-[#07104d] px-3 py-2">
+            <div className="min-w-0">
+              <div className="text-[10px] text-blue-200">げんざいち</div>
+              <div className="truncate text-[13px] font-bold text-yellow-200">{villagePhaseLabel}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] text-blue-200">村のりえき</div>
+              <div className="text-[13px] font-bold text-white">{villageProfitLabel}</div>
+            </div>
+            <div className="col-span-2 flex items-center gap-2 border-t border-white/25 pt-1 text-[10px] text-blue-100">
+              <span>イベント {unlockedMilestones.length}/{VILLAGE_MILESTONES.length}</span>
+              <span className="text-white/40">｜</span>
+              <span className="truncate">
+                {nextMilestone
+                  ? `つぎは ${Math.floor(nextMilestone.threshold / 10000)}万G・${nextMilestone.title}`
+                  : `すべての発展イベントを達成`}
               </span>
-            )}
+            </div>
           </div>
 
-          <div className="relative h-[420px] border-[2px] border-white overflow-hidden">
+          <div className="rpg-area-viewport relative h-[460px] overflow-hidden border-[3px] border-white">
             <div className="absolute inset-0 kairo-zoom-backdrop" style={{ background: kairoZoomBackdropGradient }} />
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[320] flex items-center gap-1">
+            <div className="rpg-area-zoom absolute left-1/2 top-2 z-[360] flex -translate-x-1/2 items-center gap-1 border-[2px] border-white bg-[#050b38] p-1">
               <button
                 onClick={() => setVillageZoom((prev) => Math.max(0.9, Math.round((prev - 0.1) * 10) / 10))}
-                className="bg-black/80 border border-white/80 w-7 h-7 text-white text-[14px] leading-none hover:bg-white/20"
+                aria-label="地図を縮小"
+                className="h-7 w-7 border border-white/70 bg-[#14278c] text-[14px] leading-none text-white hover:bg-[#263fbd]"
               >
-                -
+                ◀
               </button>
               <button
                 onClick={() => setVillageZoom(0.9)}
-                className="bg-black/80 border border-white/80 px-2 h-7 text-white text-[11px] leading-none hover:bg-white/20"
+                className="h-7 border-x border-white/40 bg-[#07104d] px-2 text-[10px] leading-none text-yellow-200 hover:bg-[#172a8c]"
               >
-                {villageZoom.toFixed(1)}x
+                MAP {villageZoom.toFixed(1)}
               </button>
               <button
                 onClick={() => setVillageZoom((prev) => Math.min(2.5, Math.round((prev + 0.1) * 10) / 10))}
-                className="bg-black/80 border border-white/80 w-7 h-7 text-white text-[14px] leading-none hover:bg-white/20"
+                aria-label="地図を拡大"
+                className="h-7 w-7 border border-white/70 bg-[#14278c] text-[14px] leading-none text-white hover:bg-[#263fbd]"
               >
-                +
+                ▶
               </button>
             </div>
 
@@ -1076,7 +1078,7 @@ const VillageScreen = ({
                   <div className="absolute inset-x-[3px] bottom-[9px] h-[2px] bg-white/30" />
                   <div className="absolute left-1/2 -translate-x-1/2 bottom-[11px] w-[20px] h-[20px] border border-black/55 bg-[#8b7355]/45 flex items-end justify-center overflow-hidden">
                     <div style={{ filter: 'sepia(1) saturate(2.2) hue-rotate(338deg) brightness(0.72) contrast(1.08)' }}>
-                      <PixelCharacter type={statue.charInfo.charType} size={18} />
+                      <PixelCharacter type={statue.charInfo.charType} level={statue.charInfo.level} size={18} />
                     </div>
                   </div>
                   <div className="absolute inset-x-[2px] bottom-[1px] text-[7px] leading-none text-center text-[#fef3c7] truncate">
@@ -2417,31 +2419,10 @@ const VillageScreen = ({
               <div className="absolute top-2 left-2 px-2 py-1 bg-black/62 border border-white/70 text-[11px] z-[40]">
                 CITY LV {unlockedMilestones.length}
               </div>
-              <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 border border-white/70 text-[11px] text-right z-[40] max-w-[68%]">
-                <div className="text-yellow-200 truncate">{villagePhaseLabel}</div>
-                <div className="truncate">{latestMilestone ? latestMilestone.title : '次は始まりの看板'}</div>
-                <div className="text-gray-300">人口 {kairoPopulation} / 雇用 {kairoJobs}</div>
-                <div className="text-gray-300">交通 {Math.min(99, 30 + kairoTrafficVehicles.length * 4)}% / 満足 {kairoSatisfaction}%</div>
-                <div className="text-gray-300">拡張 {advancedDevelopmentCount}/{advancedDevelopmentTotal}</div>
-                <div className="text-gray-300">時刻 {villageClockLabel} / 夜度 {Math.round(cityLightLevel * 100)}%</div>
-              </div>
-
               <div className="absolute left-1/2 -translate-x-1/2 bottom-11 z-[40] px-3 py-1 border border-white/70 bg-black/62 text-[11px] text-center min-w-[200px]">
                 税収 {villageTaxLabel} ・ 住居 {totalHouses} ・ 中層 {totalMidrise} ・ 高層 {totalHighrise}
               </div>
 
-              <div className="absolute right-[2px] bottom-[2px] z-[41] flex items-end gap-2">
-                <div className="p-[3px] rounded-[4px] bg-black/70 border border-white/70 kairo-pin-bob">
-                  <PixelCharacter type={villagerCharType} size={28} />
-                </div>
-                <div className="relative max-w-[190px] px-2 py-1 border border-black/70 bg-[#f8fafc]/95 rounded-[5px] text-[11px] leading-snug text-[#111827]">
-                  <div className="absolute left-[-5px] bottom-[7px] w-[8px] h-[8px] bg-[#f8fafc] border-l border-b border-black/70 rotate-45" />
-                  <div className="relative">
-                    <div className="text-[10px] text-[#7c2d12] mb-[2px]">{villagerName}</div>
-                    <div>{villagerComment}</div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {!isCityOnlyZoom && (
@@ -2449,21 +2430,26 @@ const VillageScreen = ({
                 <div className="absolute top-2 left-2 px-2 py-1 bg-black/55 border border-white/70 text-[11px] z-[180]">
                   Village Lv {unlockedMilestones.length}
                 </div>
-                <div className="absolute top-2 right-2 px-2 py-1 bg-black/55 border border-white/70 text-[11px] text-right z-[180] max-w-[65%]">
-                  <div className="text-yellow-200 truncate">{villagePhaseLabel}</div>
-                  <div className="truncate">{latestMilestone ? latestMilestone.title : "次は始まりの看板"}</div>
-                  <div className="text-gray-300">住居{totalHouses}・中層{totalMidrise}・高層{totalHighrise}</div>
-                  <div className="text-gray-300">交通{totalCars + totalServiceVehicles}・公共{totalFacilities}・農地{totalFields}</div>
-                  <div className="text-gray-300">{phaseProgress}% ・ 時刻 {villageClockLabel}</div>
-                </div>
               </>
             )}
 
             </div>
+            <div className="pointer-events-none absolute bottom-2 right-2 z-[370] flex items-end gap-2.5">
+              <div className="kairo-pin-bob rounded-[6px] border-2 border-white bg-black/75 p-1 shadow-[0_3px_0_rgba(0,0,0,0.55)]">
+                <PixelCharacter type={villagerCharType} size={34} />
+              </div>
+              <div className="relative w-[230px] max-w-[calc(100vw-92px)] rounded-[7px] border-2 border-[#111827] bg-white px-3 py-2 text-[13px] font-medium leading-relaxed text-[#111827] shadow-[0_3px_0_rgba(0,0,0,0.55)]">
+                <div className="absolute bottom-[10px] left-[-6px] h-[10px] w-[10px] rotate-45 border-b-2 border-l-2 border-[#111827] bg-white" />
+                <div className="relative">
+                  <div className="mb-1 text-[11px] font-bold text-[#9a3412]">{villagerName}</div>
+                  <div>{villagerComment}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </DqWindow>
 
-        <DqWindow title="むらの はってん ようす">
+        <DqWindow title="村のぼうけんきろく">
           <div className="space-y-2 mt-2">
             <div className="p-2 border-[2px] border-white/60 bg-black/40 rounded-[4px]">
               <div className="text-[13px]">
@@ -2518,9 +2504,7 @@ const VillageScreen = ({
               <div key={`village-${entry.userName}`} className="p-2 border-[2px] border-white/60 bg-black/40 rounded-[4px]">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className={`p-1 rounded-[4px] shrink-0 ${getBgColorByLevel(entry.charInfo.level)} ${getBorderClassByLevel(entry.charInfo.level)}`}>
-                      <PixelCharacter type={entry.charInfo.charType} size={28} />
-                    </div>
+                    <CharacterIcon type={entry.charInfo.charType} level={entry.charInfo.level} size={40} />
                     <div className="min-w-0">
                       <div className="text-[14px] font-bold truncate">{entry.userName}</div>
                       <div className="text-[11px] text-gray-300">利益 {formatG(entry.profit)} / 発展 {entry.points}pt</div>

@@ -1,155 +1,199 @@
 import React from 'react';
-import { TREASURE_VAULT_ART } from '../data/pixelArt.js';
-import { CHAR_CLASSES } from '../data/users.js';
+import profitPileImage from '../../assets/quest-profit-pile-32bit-512.png';
 import { formatG, formatId } from '../utils/format.js';
-import { getBgColorByLevel, getBorderClassByLevel } from '../utils/userLevel.js';
 import DqWindow from '../ui/DqWindow.jsx';
 import ProgressBar from '../ui/ProgressBar.jsx';
-import PixelCharacter from '../ui/PixelCharacter.jsx';
+import CharacterIcon from '../ui/CharacterIcon.jsx';
+import { getClassEvolution } from '../data/users.js';
+
+const CHARACTER_CATCHPHRASES = {
+  hero: 'さあ、冒険を始めよう！',
+  mage: '知恵で道をひらこう。',
+  merchant: '商機は逃さないよ！',
+  fighter: 'まかせろ、突破する！',
+  priest: 'みんなを支えます。',
+  thief: '気配は見逃さない。',
+  warrior: '正面から受けて立つ！',
+  sage: '答えはきっと見つかる。',
+  ranger: '狙いは外さない。',
+  paladin: '必ず守り抜く。',
+  dancer: 'さあ、華やかに！',
+  beastmaster: '心はちゃんと通じる。',
+};
+
+const ProfitCounter = ({ value }) => {
+  const total = Math.max(0, Math.round(Number(value) || 0));
+  const characters = new Intl.NumberFormat('ja-JP').format(total).split('');
+
+  return (
+    <div
+      role="meter"
+      aria-label={`そうりえき ${formatG(total)}`}
+      aria-valuemin={0}
+      aria-valuenow={total}
+      className="mt-2 border-y border-white/20 bg-[#243ca0]/35 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.18)] backdrop-blur-[1px]"
+    >
+      <div className="mb-1 flex items-center justify-between font-mono text-[7px] tracking-[0.15em] text-blue-100/65 sm:text-[8px]">
+        <span className="flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-300/90 shadow-[0_0_5px_rgba(103,232,249,0.75)]" />
+          TOTAL G
+        </span>
+        <span>そうりえき</span>
+      </div>
+      <div
+        aria-hidden="true"
+        className="flex min-w-0 items-center justify-end gap-[1px] overflow-hidden whitespace-nowrap rounded-[2px] border border-white/10 bg-[#07104d]/35 px-1 font-mono font-bold tabular-nums"
+      >
+        {characters.map((character, index) => (
+          character === ',' ? (
+            <span key={`${character}-${index}`} className="w-[4px] shrink-0 self-end pb-[2px] text-center text-[10px] text-blue-100/60">
+              ,
+            </span>
+          ) : (
+            <span
+              key={`${character}-${index}`}
+              className="flex h-[22px] min-w-[11px] flex-1 items-center justify-center border-r border-white/10 text-[13px] leading-none text-cyan-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] last:border-r-0 sm:h-[25px] sm:text-[15px]"
+            >
+              {character}
+            </span>
+          )
+        ))}
+        <span className="ml-1 shrink-0 text-[11px] text-cyan-200 sm:text-[13px]">G</span>
+      </div>
+      <div className="mt-1.5 grid grid-cols-8 gap-[2px] opacity-60">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <span
+            key={index}
+            className={`h-[2px] ${index < 6 ? 'bg-gradient-to-r from-violet-300 to-cyan-200' : 'bg-white/15'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const HomeScreen = ({
   user,
+  characters,
+  selectedStaffNumber,
+  onSelectCharacter,
   kpi,
   currentUserTotalProfit,
-  profitBundleSlots,
-  profitCoinSlots,
   profitBundleCount,
   profitLooseCoinCount,
-  isEditingProfile,
-  setIsEditingProfile,
-  editName,
-  setEditName,
-  editCharType,
-  setEditCharType,
-  handleSaveProfile,
-}) => (
-  <div className="space-y-4 animate-fadeIn p-4 pb-20">
+}) => {
+  const classEvolution = getClassEvolution(user.charType, user.level);
+  const catchphrase = CHARACTER_CATCHPHRASES[user.charType] || CHARACTER_CATCHPHRASES.hero;
+  const profitBreakdown = [
+    profitBundleCount > 0 ? `札束 ${profitBundleCount} 束` : null,
+    profitLooseCoinCount > 0 ? `コイン ${profitLooseCoinCount} 枚` : null,
+  ].filter(Boolean).join(' / ');
+
+  return (
+  <div className="space-y-3 animate-fadeIn p-3 pb-16">
     <DqWindow title="じょうたい">
-      {isEditingProfile ? (
-        <div className="space-y-4 animate-fadeIn mt-2">
-          <div>
-            <div className="text-[15px] mb-2">▼ なまえ</div>
-            <input
-              type="text"
-              value={editName}
-              onChange={e => setEditName(e.target.value)}
-              className="w-full bg-black border-[3px] border-white rounded-[4px] p-2 text-white font-dq focus:outline-none focus:border-yellow-300 text-[17px]"
-              maxLength={10}
-            />
-          </div>
-          <div>
-            <div className="text-[15px] mb-2 mt-4">▼ しょくぎょう</div>
-            <div className="grid grid-cols-3 gap-2">
-              {CHAR_CLASSES.map(c => (
-                 <div
-                   key={c.type}
-                   onClick={() => setEditCharType(c.type)}
-                   className={`border-[3px] rounded-[4px] p-2 flex flex-col items-center cursor-pointer transition-colors ${editCharType === c.type ? 'border-yellow-300 bg-white/20' : 'border-white bg-black hover:bg-gray-800'}`}
-                 >
-                   <PixelCharacter type={c.type} size={48} />
-                   <div className="text-[12px] sm:text-[14px] text-center mt-3">{c.name}</div>
-                 </div>
-              ))}
+      <div className="mt-1">
+        {characters.length > 1 && (
+          <div className="mb-2 border-b-[2px] border-white/30 pb-2">
+            <div className="mb-1.5 text-[11px] text-gray-300">▼ キャラクターを えらぶ</div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+              {characters.map(character => {
+                const selected = character.staffNumber === selectedStaffNumber;
+                return (
+                  <button
+                    key={character.staffNumber || character.name}
+                    type="button"
+                    onClick={() => onSelectCharacter(character.staffNumber)}
+                    className={`flex min-w-[86px] flex-shrink-0 items-center gap-1.5 rounded-[4px] border-[2px] p-1.5 text-left transition-colors ${
+                      selected
+                        ? 'border-yellow-300 bg-white/15 text-yellow-100'
+                        : 'border-gray-600 bg-black/40 text-gray-300 hover:border-white'
+                    }`}
+                  >
+                    <CharacterIcon type={character.charType} level={character.level} size={28} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[10px] font-bold">{character.name}</span>
+                      <span className="block font-mono text-[8px] text-purple-200">{character.staffNumber}</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/30">
-            <button onClick={() => setIsEditingProfile(false)} className="px-4 py-2 text-[15px] hover:text-gray-300">もどる</button>
-            <button onClick={handleSaveProfile} className="px-6 py-2 border-[3px] border-white rounded-[4px] text-white hover:bg-white hover:text-black transition-colors">けってい</button>
+        )}
+        <div className="relative mb-1 pt-8">
+          <div className="absolute left-[50px] top-0 z-30 max-w-[calc(100%_-_56px)] rounded-[5px] border-[2px] border-[#111827] bg-white px-2.5 py-1 text-[10px] font-black leading-snug text-[#111827] shadow-[3px_3px_0_#cbd5e1,4px_4px_0_#111827] sm:text-[11px]">
+            <span className="pointer-events-none absolute inset-[3px] rounded-[3px] border border-gray-300" />
+            <span className="relative">
+            「{catchphrase}」
+            </span>
+            <span className="absolute -bottom-[7px] left-[14px] h-[11px] w-[11px] rotate-45 border-b-[2px] border-r-[2px] border-[#111827] bg-white shadow-[2px_2px_0_#cbd5e1]" />
           </div>
-        </div>
-      ) : (
-        <div className="mt-2">
-          <div className="flex gap-4 items-start mb-4">
-            <div className={`p-2 shrink-0 rounded-[6px] transition-all duration-500 ${getBgColorByLevel(user.level)} ${getBorderClassByLevel(user.level)}`}>
-               <PixelCharacter type={user.charType} size={72} className="animate-bounce-slow" />
-            </div>
-            <div className="flex-1 text-[15px] sm:text-[17px] leading-loose pt-1">
-              <div className="text-yellow-200 text-[13px] leading-none mb-1">{formatId(user.id)}</div>
+          <div className="flex items-start gap-4 sm:gap-5">
+            <CharacterIcon type={user.charType} level={user.level} size={92} animated />
+            <div className="min-w-0 flex-1 pl-1 pt-0.5 text-[14px] leading-relaxed sm:pl-2 sm:text-[16px]">
+              <div className="mb-0.5 text-[12px] leading-none text-yellow-200">
+                {user.staffNumber || formatId(user.id)}
+              </div>
               <div>なまえ: {user.name}</div>
-              <div>しょくぎょう: {user.className}</div>
+              <div>しょくぎょう: {classEvolution.name}</div>
               <div>レベル: <span className="text-white">{user.level}</span></div>
+              <div className="mt-0.5 text-[10px] leading-snug text-cyan-200 sm:text-[11px]">
+                {classEvolution.next
+                  ? `つぎのしんか: Lv.${classEvolution.next.level} ${classEvolution.next.name}`
+                  : `さいしゅうしょく: ${classEvolution.name}`}
+              </div>
             </div>
           </div>
-          <div className="text-right mt-4">
-            <button
-              onClick={() => { setEditName(user.name); setEditCharType(user.charType); setIsEditingProfile(true); }}
-              className="text-[14px] text-gray-300 hover:text-white border-b border-gray-400 hover:border-white transition-colors pb-0.5"
-            >
-              すがたを かえる ▶
-            </button>
-          </div>
         </div>
-      )}
+      </div>
     </DqWindow>
 
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-3">
       <DqWindow>
-        <div className="text-[15px]">けいけんち</div>
-        <div className="text-right text-[17px] mb-3">{user.exp}</div>
-        <div className="text-[15px]">つぎのレベル</div>
-        <div className="text-right text-[17px]">{100 - (user.exp % 100)}</div>
-        <ProgressBar current={user.exp % 100} target={100} colorClass="bg-blue-500" />
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[13px] text-gray-300">げんざいレベル</span>
+            <span className="text-[20px] font-bold text-yellow-200">Lv.{user.level}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[13px] text-gray-300">かくとくけいけんち</span>
+            <span className="text-[17px] font-bold">{user.exp}<span className="ml-1 text-[11px] text-blue-200">EXP</span></span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[13px] text-gray-300">つぎのレベルまで</span>
+            <span className="text-[17px] font-bold">{100 - (user.exp % 100)}<span className="ml-1 text-[11px] text-blue-200">EXP</span></span>
+          </div>
+        </div>
+        <ProgressBar
+          current={user.exp % 100}
+          target={100}
+          colorClass="bg-gradient-to-r from-cyan-500 to-blue-400"
+          large
+          showValue
+        />
       </DqWindow>
 
       <DqWindow className="relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/12 via-yellow-200/4 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-black/20 to-transparent" />
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-[3%] z-[1] w-[78%] max-w-[188px]">
-            <svg
-              width="100%"
-              height="100%"
-              viewBox={`0 0 ${TREASURE_VAULT_ART.pixels[0].length} ${TREASURE_VAULT_ART.pixels.length}`}
-              className="pixel-art w-full h-auto drop-shadow-[0_2px_0_rgba(0,0,0,0.35)]"
-              style={{ shapeRendering: 'crispEdges' }}
-            >
-              {TREASURE_VAULT_ART.pixels.map((rowStr, y) => rowStr.split('').map((char, x) => {
-                if (TREASURE_VAULT_ART.colors[char] === 'transparent') return null;
-                return <rect key={`vault-${x}-${y}`} x={x} y={y} width="1" height="1" fill={TREASURE_VAULT_ART.colors[char]} />;
-              }))}
-            </svg>
-          </div>
-          {profitBundleSlots.map((bundle, idx) => (
-            <div
-              key={`profit-bundle-${idx}`}
-              className="absolute w-[14px] h-[8px] border border-black/35 rounded-[1px] overflow-hidden"
-              style={{
-                left: `${bundle.left}%`,
-                bottom: `${bundle.bottom}%`,
-                zIndex: bundle.z + 4,
-                background: 'linear-gradient(180deg, #dcfce7 0%, #86efac 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55)',
-              }}
-            >
-              <div className="absolute left-[5px] top-0 bottom-0 w-[3px] bg-[#0f766e]/75" />
-              <div className="absolute inset-x-0 top-[3px] h-[1px] bg-[#0f766e]/65" />
-            </div>
-          ))}
-          {profitCoinSlots.map((coin, idx) => (
-            <div
-              key={`profit-coin-${idx}`}
-              className="absolute w-[7px] h-[4px] rounded-full border border-black/35"
-              style={{
-                left: `${coin.left}%`,
-                bottom: `${coin.bottom}%`,
-                zIndex: coin.z + 3,
-                background: 'linear-gradient(180deg, #fde68a 0%, #f59e0b 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55)',
-              }}
+          <div className="absolute inset-x-0 bottom-[3%] z-[1] flex justify-center">
+            <img
+              src={profitPileImage}
+              alt=""
+              className="h-auto w-[76%] max-w-[145px] opacity-90 [image-rendering:pixelated] drop-shadow-[0_4px_2px_rgba(0,0,0,0.36)]"
             />
-          ))}
+          </div>
         </div>
-        <div className="relative z-[5]">
+        <div className="relative z-[5] min-h-[122px]">
           <div className="text-[15px]">そうりえき</div>
-          <div className="text-right text-[17px] text-yellow-200">{currentUserTotalProfit > 0 ? formatG(currentUserTotalProfit) : "—"}</div>
-          <div className="mt-3 flex justify-center opacity-85">
-            <span className="text-[32px]">G</span>
-          </div>
-          <div className="text-center text-[10px] text-yellow-100/85 mt-1">
-            {profitBundleCount > 0
-              ? `札束 ${profitBundleCount} 束 / コイン ${profitLooseCoinCount} 枚`
-              : `コイン ${profitLooseCoinCount} 枚`}
-          </div>
+          <ProfitCounter value={currentUserTotalProfit} />
+          {profitBreakdown && (
+            <div className="absolute inset-x-0 bottom-0 bg-[#07104d]/75 py-1 text-center text-[10px] text-blue-100/80">
+              {profitBreakdown}
+            </div>
+          )}
         </div>
       </DqWindow>
     </div>
@@ -159,7 +203,7 @@ const HomeScreen = ({
         {Object.entries(kpi).map(([key, data]) => (
           <div key={key}>
             <div className="flex justify-between text-[15px] mb-1">
-              <span>{data.icon} {data.name}</span>
+              <span>{data.name}</span>
               <span className={data.current >= data.target ? 'text-yellow-300 font-bold' : ''}>
                 {data.current} <span className="text-gray-400">/ {data.target}</span>
               </span>
@@ -170,6 +214,7 @@ const HomeScreen = ({
       </div>
     </DqWindow>
   </div>
-);
+  );
+};
 
 export default HomeScreen;

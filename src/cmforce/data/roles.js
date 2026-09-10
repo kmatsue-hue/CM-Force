@@ -1,13 +1,16 @@
 // --- 権限ロール定義 ---
 export const ROLES = {
   KIKAKU: '企画部',
-  SETUP: 'セットアップ',
+  SETUP: 'SOMPOケアソリューションズ',
   EIGYO: '営業部',
 };
 
 export const ROLE_LIST = [ROLES.KIKAKU, ROLES.SETUP, ROLES.EIGYO];
 
-// KPI タブを閲覧できるロール（セットアップは不可）
+// 旧名称で保存されている認証情報・担当者データとの互換性を保つ
+export const normalizeRole = (role) => (role === 'セットアップ' ? ROLES.SETUP : role);
+
+// KPI タブを閲覧できるロール（SOMPOケアソリューションズは不可）
 export const KPI_ALLOWED_ROLES = [ROLES.KIKAKU, ROLES.EIGYO];
 
 // 担当者管理を閲覧・編集できるロール（営業企画 = 企画部のみ）

@@ -25,19 +25,194 @@ const questStyles = `
           letter-spacing: 0.01em;
         }
         .font-dq-title { font-family: 'Press Start 2P', 'DotGothic16', monospace; line-height: 1.15; letter-spacing: 0.03em; }
+        .dq-logo-lockup {
+          display: flex;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          gap: clamp(4px, 2vw, 12px);
+        }
         .dq-logo {
-          display: inline-block;
-          color: #f6dc4f;
-          font-weight: 700;
+          position: relative;
+          display: inline-flex;
+          min-width: clamp(205px, 63vw, 270px);
+          flex-direction: column;
+          align-items: center;
+          color: #fff;
           font-family: 'Press Start 2P', 'DotGothic16', monospace;
-          letter-spacing: 0.02em;
-          transform: none;
+          line-height: 1;
+          filter: drop-shadow(3px 4px 0 #020617);
+          isolation: isolate;
+        }
+        .dq-logo-kicker {
+          position: relative;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: -2px;
+          color: #fff8c5;
+          font-size: clamp(7px, 1.8vw, 9px);
+          letter-spacing: 0.22em;
+          text-shadow: 1px 1px 0 #7c2d12, -1px -1px 0 #7c2d12;
+        }
+        .dq-logo-kicker span {
+          color: #facc15;
+          font-size: 6px;
+          animation: logo-gem-twinkle 1.8s steps(2, end) infinite;
+        }
+        .dq-logo-title {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transform: skew(-7deg);
+        }
+        .dq-logo-word {
+          display: block;
+          padding: 2px 3px 4px 1px;
+          background: linear-gradient(180deg, #fff8ba 0 15%, #ffd43b 16% 44%, #f97316 45% 72%, #dc2626 73% 100%);
+          background-clip: text;
+          -webkit-background-clip: text;
+          color: transparent;
+          -webkit-text-stroke: 1.5px #fff;
+          font-size: clamp(24px, 7vw, 31px);
+          font-weight: 700;
+          letter-spacing: -0.08em;
+          text-shadow:
+            2px 0 0 #172554,
+            -2px 0 0 #172554,
+            0 2px 0 #172554,
+            0 -2px 0 #172554,
+            3px 3px 0 #172554,
+            5px 5px 0 #020617;
+        }
+        .dq-logo-crest {
+          position: relative;
+          z-index: 3;
+          display: grid;
+          width: clamp(29px, 8vw, 36px);
+          height: clamp(29px, 8vw, 36px);
+          margin-right: -3px;
+          place-items: center;
+          transform: skew(7deg) rotate(-8deg);
+          border: 2px solid #fff8c5;
+          background: linear-gradient(145deg, #60a5fa 0 45%, #1d4ed8 46% 100%);
+          color: #fff8c5;
+          font-size: clamp(13px, 3.5vw, 16px);
+          text-shadow: 2px 2px 0 #172554;
+          box-shadow:
+            0 0 0 2px #172554,
+            3px 3px 0 #020617,
+            inset 2px 2px 0 rgba(255,255,255,0.35);
+          clip-path: polygon(50% 0, 92% 18%, 84% 78%, 50% 100%, 16% 78%, 8% 18%);
+        }
+        .dq-logo-ribbon {
+          position: relative;
+          z-index: 4;
+          min-width: clamp(160px, 48vw, 205px);
+          margin-top: -2px;
+          padding: 3px 16px 3px;
+          border: 1px solid #fde68a;
+          background: linear-gradient(180deg, #1e3a8a, #07164f);
+          color: #fff8c5;
+          font-family: 'DotGothic16', 'BIZ UDPGothic', sans-serif;
+          font-size: clamp(9px, 2.4vw, 11px);
+          font-weight: 700;
+          letter-spacing: 0.18em;
+          line-height: 1;
+          text-shadow: 1px 1px 0 #000;
+          box-shadow: 2px 2px 0 #020617;
+          clip-path: polygon(0 0, 9px 50%, 0 100%, 100% 100%, calc(100% - 9px) 50%, 100% 0);
+        }
+        .dq-watch-device {
+          position: relative;
+          width: clamp(28px, 9vw, 40px);
+          height: clamp(38px, 11vw, 48px);
+          flex: 0 0 auto;
+          filter: drop-shadow(3px 3px 0 #020617);
+          image-rendering: pixelated;
+        }
+        .dq-watch-antenna {
+          position: absolute;
+          top: 0;
+          left: 50%;
+          width: 4px;
+          height: 11px;
+          transform: translateX(-50%);
+          border: 1px solid #020617;
+          background: #dbeafe;
+          box-shadow: 0 -3px 0 #facc15;
+        }
+        .dq-watch-body {
+          position: absolute;
+          top: 9px;
+          left: 50%;
+          width: calc(100% - 4px);
+          height: 25px;
+          transform: translateX(-50%);
+          border: 3px solid #020617;
+          background:
+            linear-gradient(180deg, #eff6ff 0 22%, #93c5fd 23% 72%, #3b82f6 73% 100%);
+          box-shadow:
+            0 0 0 2px #ffffff,
+            inset 3px 3px 0 rgba(255,255,255,0.55);
+        }
+        .dq-watch-lens {
+          position: absolute;
+          top: 5px;
+          left: 50%;
+          width: 12px;
+          height: 12px;
+          transform: translateX(-50%);
+          border: 3px solid #172554;
+          background: #22d3ee;
+          box-shadow:
+            inset 3px 3px 0 #ecfeff,
+            0 0 0 1px #020617;
+          animation: watch-lens-pulse 1.8s steps(2, end) infinite;
+        }
+        .dq-watch-light {
+          position: absolute;
+          right: 2px;
+          bottom: 2px;
+          width: 4px;
+          height: 4px;
+          border: 1px solid #020617;
+          background: #4ade80;
+          animation: blink 1.2s step-end infinite;
+        }
+        .dq-watch-stand {
+          position: absolute;
+          bottom: 2px;
+          left: 50%;
+          width: 18px;
+          height: 5px;
+          transform: translateX(-50%);
+          border: 2px solid #020617;
+          background: #facc15;
+          box-shadow: 0 3px 0 #020617;
+        }
+        .dq-watch-device.is-left {
+          transform: rotate(-4deg);
+        }
+        .dq-watch-device.is-right {
+          transform: rotate(4deg);
+        }
+        @keyframes watch-lens-pulse {
+          0%, 70%, 100% { background: #22d3ee; }
+          75%, 90% { background: #ffffff; }
         }
         .dq-title-shadow { 
           text-shadow:
             -2px 0 0 #000, 2px 0 0 #000, 0 -2px 0 #000, 0 2px 0 #000,
             -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
             0 4px 0 #11207a;
+        }
+        @keyframes logo-gem-twinkle {
+          0%, 72%, 100% { color: #facc15; transform: scale(1); }
+          76%, 88% { color: #fff; transform: scale(1.25); }
         }
         .fc-frame {
           background: var(--fc-blue-1);
@@ -109,6 +284,32 @@ const questStyles = `
         }
         .fc-progress-fill {
           height: 100%;
+        }
+        .fc-progress.is-large {
+          height: 24px;
+          margin-top: 0.75rem;
+          border-width: 2px;
+        }
+        .fc-progress-value {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-family: 'Press Start 2P', 'DotGothic16', monospace;
+          font-size: 8px;
+          font-weight: 700;
+          line-height: 1;
+          letter-spacing: 0.02em;
+          text-shadow:
+            1px 0 0 #020617,
+            -1px 0 0 #020617,
+            0 1px 0 #020617,
+            0 -1px 0 #020617,
+            1px 1px 0 #020617;
+          pointer-events: none;
         }
         .fc-nav {
           background: var(--fc-blue-1);
@@ -230,6 +431,69 @@ const questStyles = `
         .kairo-city-map {
           image-rendering: pixelated;
           background: #7ac1ee;
+        }
+        .rpg-village-screen {
+          --rpg-ink: #020617;
+          --rpg-panel: #07104d;
+          --rpg-panel-2: #14278c;
+          --rpg-gold: #f6dc4f;
+        }
+        .rpg-village-screen .fc-window {
+          box-shadow:
+            inset 0 0 0 2px #07104d,
+            inset 0 0 0 4px #ffffff,
+            5px 5px 0 #020617;
+        }
+        .rpg-area-summary {
+          box-shadow: inset 0 0 0 2px #14278c, 3px 3px 0 #020617;
+        }
+        .rpg-area-viewport {
+          background: #183c66;
+          box-shadow:
+            inset 0 0 0 2px #07104d,
+            4px 4px 0 #020617;
+          image-rendering: pixelated;
+          isolation: isolate;
+        }
+        .rpg-area-viewport::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 345;
+          pointer-events: none;
+          background:
+            repeating-linear-gradient(0deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 4px),
+            repeating-linear-gradient(90deg, rgba(3,7,18,0.055) 0 1px, transparent 1px 4px);
+          mix-blend-mode: overlay;
+          opacity: 0.55;
+        }
+        .rpg-area-viewport::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 346;
+          pointer-events: none;
+          box-shadow:
+            inset 0 0 0 3px rgba(7,16,77,0.92),
+            inset 0 0 0 5px rgba(255,255,255,0.42),
+            inset 0 0 30px rgba(2,6,23,0.48);
+        }
+        .rpg-area-viewport .village-zoom-stage,
+        .rpg-area-viewport .kairo-city-map {
+          image-rendering: pixelated;
+        }
+        .rpg-area-viewport .village-zoom-stage > div,
+        .rpg-area-viewport .kairo-city-map > div {
+          image-rendering: pixelated;
+        }
+        .rpg-area-zoom {
+          box-shadow: 3px 3px 0 #020617;
+        }
+        @media (max-width: 640px) {
+          .rpg-area-viewport {
+            height: min(58vh, 460px);
+            min-height: 390px;
+          }
         }
         .kairo-day-cycle-haze {
           background:

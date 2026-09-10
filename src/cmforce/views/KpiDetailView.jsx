@@ -8,6 +8,7 @@ import { PHASES } from '../data/phases.js';
 import { formatJPY, formatJPYShort } from '../utils/format.js';
 import Card from '../ui/Card.jsx';
 import RankBadge from '../ui/RankBadge.jsx';
+import ProjectName from '../ui/ProjectName.jsx';
 
 // --- ケアマックス KPI 詳細ビュー ---
 const KpiDetailView = ({ kpi, colorMap, projects, onBack, onSelectProject }) => {
@@ -172,7 +173,10 @@ const KpiDetailView = ({ kpi, colorMap, projects, onBack, onSelectProject }) => 
               {matched.map(p => (
                 <tr key={p.id} className={`group cursor-pointer transition-colors ${p.isLost ? 'bg-gray-50/40 opacity-75' : 'hover:bg-purple-50/50'}`} onClick={() => onSelectProject && onSelectProject(p.id)}>
                   <td className="px-6 py-4">
-                    <div className="font-semibold text-gray-900">{p.name}{p.isLost && <span className="ml-2 text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">LOST</span>}</div>
+                    <div className="font-semibold text-gray-900">
+                      <ProjectName name={p.name} />
+                      {p.isLost && <span className="ml-2 text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">LOST</span>}
+                    </div>
                     <div className="text-gray-500 text-xs mt-1 flex items-center"><Building className="w-3.5 h-3.5 mr-1.5" />{p.endUser?.companyName}</div>
                   </td>
                   <td className="px-6 py-4"><span className="text-xs font-bold text-purple-700">{p.status}</span></td>

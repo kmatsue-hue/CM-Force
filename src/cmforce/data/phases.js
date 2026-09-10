@@ -1,6 +1,9 @@
 // --- フェーズ定義 ---
+export const WEB_MEETING_PHASE = 'WEB面談可否';
+export const WEB_MEETING_LOG_TYPE = 'webMeetingRequest';
+
 export const PHASES = [
-  '案件発掘', '案件スクリーニング', 'EUとの商談', '現地調査',
+  '案件発掘', '案件スクリーニング', WEB_MEETING_PHASE, 'EUとの商談', '現地調査',
   '設計', '提案書／見積書提出', '販売契約締結', '施工・納品', '一次保守'
 ];
 
@@ -12,11 +15,12 @@ export const MERGE_PHASE = '施工・納品';
 export const isBranchablePattern = (pattern) => !!pattern && (pattern.includes('パターン1') || pattern.includes('パターン2'));
 
 // マージン支払サブフロー（全パターンで「施工・納品」の上に分岐）
-// パターン①/③: マージン支払 → 販売店へ支払 → 一次保守
+// パターン①   : 当社上乗せ利益を記録 → 一次保守（バックマージン支払なし）
 // パターン②   : マージン支払 がゴール（販売店へ支払 なし → 一次保守へ合流）
+// パターン③   : マージン支払 → 販売店へ支払 → 一次保守
 export const MARGIN_BRANCH_PHASE = '施工・納品';
 export const MARGIN_MERGE_PHASE  = '一次保守';
 export const getMarginSteps = (pattern) =>
-  pattern?.includes('パターン2') ? ['マージン支払'] : ['マージン支払', '販売店へ支払'];
+  pattern?.includes('パターン3') ? ['マージン支払', '販売店へ支払'] : ['マージン支払'];
 export const isMarginBranchablePattern = (pattern) =>
   !!pattern && (pattern.includes('パターン1') || pattern.includes('パターン2') || pattern.includes('パターン3'));

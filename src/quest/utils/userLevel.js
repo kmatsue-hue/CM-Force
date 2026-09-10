@@ -1,4 +1,4 @@
-import { USERS_MASTER } from '../data/users.js';
+import { getClassEvolution, USERS_MASTER } from '../data/users.js';
 
 export const getBorderClassByLevel = (level) => {
   if (level >= 10) return "animate-rainbow-border border-[3px]";
@@ -21,12 +21,18 @@ export const getBgColorByLevel = (level) => {
 // user は呼び出し側コンポーネントの state なので引数で受け取る
 export const getCharInfo = (userName, currentUser) => {
   if (userName === currentUser.name) {
+    const evolution = getClassEvolution(currentUser.charType, currentUser.level);
     return {
       id: currentUser.id,
       charType: currentUser.charType,
-      className: currentUser.className,
+      className: evolution.name,
       level: currentUser.level,
     };
   }
-  return USERS_MASTER[userName] || { id: 999, charType: 'hero', className: 'みならい', level: 1 };
+  const storedUser = USERS_MASTER[userName];
+  if (!storedUser) return { id: 999, charType: 'hero', className: 'みならい', level: 1 };
+  return {
+    ...storedUser,
+    className: getClassEvolution(storedUser.charType, storedUser.level).name,
+  };
 };
