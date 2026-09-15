@@ -3,18 +3,19 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  color: #11110f;
-  background: #f6f6f3;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  color: #1d1d1f;
+  background: #f5f5f7;
   font-synthesis: none;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f6f6f3;
-  color: #11110f;
+  background: #f5f5f7;
+  color: #1d1d1f;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -36,17 +37,24 @@ textarea {
 }
 
 .cm-app {
-  background:
-    radial-gradient(700px 260px at 58% 100%, rgba(42, 139, 255, .14), transparent 68%),
-    radial-gradient(540px 220px at 38% 100%, rgba(141, 69, 255, .13), transparent 68%),
-    #f6f6f3;
+  --apple-blue: #0071e3;
+  --apple-blue-hover: #0077ed;
+  --apple-text: #1d1d1f;
+  --apple-muted: #6e6e73;
+  --apple-canvas: #f5f5f7;
+  --apple-surface: #ffffff;
+  --apple-line: rgba(0, 0, 0, .08);
+  --apple-shadow: 0 12px 34px rgba(0, 0, 0, .055);
+  background: var(--apple-canvas);
   background-attachment: fixed;
 }
 
 .cm-topbar {
-  background: rgba(255, 255, 253, .9);
-  border-color: rgba(25, 25, 22, .1);
-  backdrop-filter: blur(18px);
+  background: rgba(250, 250, 252, .82);
+  border-color: var(--apple-line);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
 .cm-main {
@@ -54,35 +62,38 @@ textarea {
 }
 
 .cm-app :is(input, select, textarea) {
-  border-color: #deded9;
-  background-color: #fafaf8;
+  border-color: transparent;
+  background-color: #f5f5f7;
+  color: var(--apple-text);
+  border-radius: 12px;
 }
 
 .cm-app :is(input, select, textarea):focus {
-  border-color: #171715;
-  box-shadow: 0 0 0 3px rgba(23, 23, 21, .09);
+  border-color: var(--apple-blue);
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, .13);
   outline: none;
 }
 
 .cm-app button.bg-purple-600,
 .cm-app button.bg-gradient-to-br.from-purple-600 {
-  background: #11110f;
-  border-color: #11110f;
+  background: var(--apple-blue);
+  border-color: var(--apple-blue);
   color: #fff;
   box-shadow: none;
 }
 
 .cm-app button.bg-purple-600:hover,
 .cm-app button.bg-gradient-to-br.from-purple-600:hover {
-  background: #2b2b28;
+  background: var(--apple-blue-hover);
 }
 
 .cm-app .text-purple-700 {
-  color: #292927;
+  color: var(--apple-blue);
 }
 
 .cm-app .bg-purple-50 {
-  background-color: #f1f1ee;
+  background-color: #eef6ff;
 }
 
 .cm-app table thead {
@@ -96,34 +107,240 @@ textarea {
 .dashboard-hero {
   position: relative;
   overflow: hidden;
-  min-height: 172px;
-  border: 1px solid #e4e4df;
-  border-radius: 24px;
-  background: rgba(255, 255, 253, .82);
-  padding: clamp(22px, 3.6vw, 42px);
+  min-height: 230px;
+  border: 0;
+  border-radius: 30px;
+  background: #fff;
+  padding: clamp(30px, 5vw, 66px);
+  box-shadow: var(--apple-shadow);
 }
 
 .dashboard-hero::after {
   position: absolute;
-  right: -105px;
-  bottom: -150px;
-  width: 390px;
-  height: 220px;
+  right: -70px;
+  bottom: -120px;
+  width: 460px;
+  height: 330px;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 38% 45%, rgba(115, 64, 255, .5), transparent 46%),
-    radial-gradient(circle at 70% 38%, rgba(35, 145, 255, .55), transparent 50%);
-  filter: blur(34px);
+    radial-gradient(circle at 38% 45%, rgba(112, 89, 255, .30), transparent 47%),
+    radial-gradient(circle at 70% 38%, rgba(0, 113, 227, .38), transparent 52%);
+  filter: blur(42px);
   content: "";
-  opacity: .65;
+  opacity: .72;
   pointer-events: none;
 }
 
 .auralis-login {
   background:
-    radial-gradient(620px 250px at 55% 103%, rgba(43, 145, 255, .35), transparent 62%),
-    radial-gradient(500px 230px at 40% 103%, rgba(133, 59, 255, .3), transparent 62%),
-    #f7f7f4;
+    radial-gradient(700px 330px at 55% 108%, rgba(0, 113, 227, .18), transparent 65%),
+    radial-gradient(560px 280px at 38% 108%, rgba(127, 86, 217, .14), transparent 64%),
+    #f5f5f7;
+}
+
+.auralis-login > div {
+  border: 0 !important;
+  border-radius: 36px !important;
+  background: rgba(255, 255, 255, .88) !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .08) !important;
+  backdrop-filter: saturate(180%) blur(24px) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(24px) !important;
+}
+
+.auralis-login header,
+.auralis-login footer {
+  border-color: rgba(0, 0, 0, .07) !important;
+}
+
+.auralis-login main > section:first-child h1 {
+  color: #1d1d1f;
+  font-weight: 700 !important;
+  letter-spacing: -.07em;
+}
+
+.auralis-login main > section:last-child {
+  border: 0 !important;
+  border-radius: 28px !important;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .09) !important;
+}
+
+.auralis-login main > section:last-child button[type="submit"] {
+  background: #0071e3 !important;
+  box-shadow: 0 6px 18px rgba(0, 113, 227, .2);
+}
+
+.auralis-login main > section:last-child button[type="submit"]:hover {
+  background: #0077ed !important;
+}
+
+/* Apple-inspired application chrome */
+.cm-topbar-inner {
+  max-width: 1280px;
+}
+
+.cm-logo-button {
+  border-radius: 10px;
+}
+
+.cm-logo-button:focus-visible,
+.cm-app button:focus-visible,
+.cm-app a:focus-visible {
+  outline: 3px solid rgba(0, 113, 227, .32);
+  outline-offset: 3px;
+}
+
+.cm-nav-tabs {
+  gap: 2px;
+}
+
+.cm-nav-button {
+  min-height: 34px;
+  padding-inline: 14px;
+  color: #515154;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.cm-nav-button:hover {
+  background: rgba(0, 0, 0, .045);
+  color: #1d1d1f;
+}
+
+.cm-nav-button.is-active {
+  background: #1d1d1f !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.cm-toolbar-actions > button,
+.cm-toolbar-actions > span > button,
+.cm-role-pill,
+.cm-signout-button {
+  border-color: rgba(0, 0, 0, .08) !important;
+  background: rgba(255, 255, 255, .72) !important;
+  box-shadow: none;
+}
+
+.cm-content:not(:has(.quest-app-host)) {
+  max-width: 1280px;
+}
+
+.cm-card {
+  border: 0 !important;
+  border-radius: 28px !important;
+  background: rgba(255, 255, 255, .94) !important;
+  box-shadow: var(--apple-shadow) !important;
+  backdrop-filter: none !important;
+}
+
+.cm-card:hover {
+  border-color: transparent !important;
+}
+
+.cm-app h1,
+.cm-app h2,
+.cm-app h3 {
+  color: var(--apple-text);
+  letter-spacing: -.035em;
+}
+
+.cm-app h1 {
+  font-weight: 700 !important;
+}
+
+.cm-app h2,
+.cm-app h3 {
+  font-weight: 650 !important;
+}
+
+.cm-app :is(.text-gray-400, .text-gray-500, .text-gray-600) {
+  color: var(--apple-muted);
+}
+
+.cm-app button:not(:disabled) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cm-app button:not(:disabled):active {
+  transform: scale(.975);
+}
+
+.cm-app button.bg-black,
+.cm-app button.bg-slate-900 {
+  background: #1d1d1f;
+}
+
+.cm-app button.rounded-full.bg-purple-600,
+.cm-app button.rounded-xl.bg-purple-600,
+.cm-app button.rounded-lg.bg-purple-600 {
+  box-shadow: 0 4px 12px rgba(0, 113, 227, .18);
+}
+
+.cm-app table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.cm-app table thead {
+  background: #f5f5f7;
+  color: #6e6e73;
+}
+
+.cm-app table tbody tr:hover {
+  background: #f5f5f7;
+}
+
+.cm-app [role="dialog"],
+.cm-app .mobile-sheet > :first-child {
+  border-color: rgba(0, 0, 0, .08) !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .20) !important;
+}
+
+.mobile-page-hero,
+.project-hero {
+  border: 0 !important;
+  border-radius: 30px !important;
+  background: #fff !important;
+  box-shadow: var(--apple-shadow);
+}
+
+.quest-app-host {
+  overflow: hidden;
+  background: #1d1d1f !important;
+}
+
+.cm-mobile-nav {
+  border-color: rgba(0, 0, 0, .08) !important;
+  border-radius: 24px !important;
+  background: rgba(250, 250, 252, .88) !important;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, .16) !important;
+  backdrop-filter: saturate(180%) blur(24px) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(24px) !important;
+}
+
+.cm-mobile-nav button.bg-black {
+  background: #1d1d1f;
+}
+
+@media (min-width: 640px) {
+  .cm-topbar-inner {
+    height: 54px;
+  }
+
+  .cm-main {
+    min-height: calc(100vh - 54px);
+  }
+
+  .cm-content:not(:has(.quest-app-host)) {
+    padding-top: 42px;
+    padding-bottom: 64px;
+  }
+
+  .quest-app-host {
+    border-radius: 34px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .18);
+  }
 }
 
 @media (max-width: 639px) {
@@ -148,9 +365,9 @@ textarea {
   }
 
   .dashboard-hero {
-    min-height: 142px;
-    border-radius: 18px;
-    padding: 20px 18px;
+    min-height: 180px;
+    border-radius: 24px;
+    padding: 28px 22px;
   }
 
   .dashboard-hero h1 {
@@ -228,7 +445,7 @@ textarea {
     width: 100%;
     max-height: 92dvh;
     margin: 0;
-    border-radius: 22px 22px 0 0;
+    border-radius: 28px 28px 0 0;
     overflow-y: auto;
   }
 }

@@ -2,7 +2,7 @@ const questStyles = `
         @import url('https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        :root { color-scheme: dark; }
+        .fc-shell { color-scheme: dark; }
         .fc-shell {
           --fc-blue-0: #03081f;
           --fc-blue-1: #0b1a72;
@@ -12,7 +12,9 @@ const questStyles = `
           --fc-accent: #f6dc4f;
           --fc-border: #ffffff;
           --fc-shadow: #000000;
-          background: var(--fc-blue-0);
+          background:
+            radial-gradient(circle at 50% 12%, rgba(59, 130, 246, 0.22), transparent 42%),
+            #1d1d1f;
         }
         .fc-shell,
         .fc-shell * {
@@ -216,12 +218,17 @@ const questStyles = `
         }
         .fc-frame {
           background: var(--fc-blue-1);
-          border: 4px solid var(--fc-border);
-          box-shadow: 0 0 0 4px var(--fc-blue-1), 0 0 0 8px var(--fc-border), 8px 8px 0 var(--fc-shadow);
+          border: 1px solid rgba(255, 255, 255, 0.24);
+          border-radius: 30px;
+          box-shadow:
+            0 34px 90px rgba(0, 0, 0, 0.48),
+            0 0 0 1px rgba(255, 255, 255, 0.08);
         }
         .fc-header {
-          background: var(--fc-blue-1);
-          border-bottom: 3px solid var(--fc-border);
+          background: rgba(11, 26, 114, 0.88);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+          backdrop-filter: saturate(150%) blur(18px);
+          -webkit-backdrop-filter: saturate(150%) blur(18px);
         }
         .fc-main {
           position: relative;
@@ -312,8 +319,10 @@ const questStyles = `
           pointer-events: none;
         }
         .fc-nav {
-          background: var(--fc-blue-1);
-          border-top: 3px solid var(--fc-border);
+          background: rgba(11, 26, 114, 0.92);
+          border-top: 1px solid rgba(255, 255, 255, 0.28);
+          backdrop-filter: saturate(160%) blur(18px);
+          -webkit-backdrop-filter: saturate(160%) blur(18px);
         }
         .fc-nav-btn {
           flex: 1 1 0;
@@ -325,15 +334,16 @@ const questStyles = `
           justify-content: center;
           border: 2px solid transparent;
           color: var(--fc-text);
-          transition: none;
+          border-radius: 12px !important;
+          transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
         }
         .fc-nav-btn:hover {
-          border-color: var(--fc-border);
-          background: #1a2da8;
+          border-color: rgba(255, 255, 255, 0.4);
+          background: rgba(255, 255, 255, 0.1);
         }
         .fc-nav-btn.is-active {
-          border-color: var(--fc-border);
-          background: var(--fc-blue-3);
+          border-color: rgba(255, 255, 255, 0.48);
+          background: rgba(255, 255, 255, 0.16);
           color: var(--fc-accent);
         }
         .fc-nav-caret {
@@ -668,6 +678,7 @@ const questStyles = `
         @media (max-width: 640px) {
           .fc-frame {
             border-width: 0;
+            border-radius: 0;
             box-shadow: none;
           }
         }

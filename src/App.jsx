@@ -292,23 +292,23 @@ export default function App() {
     <div className="cm-app min-h-screen">
       {/* トップナビゲーション */}
       <div className={`cm-topbar border-b sticky top-0 z-40 ${isQuestView ? 'hidden sm:block' : ''}`}>
-        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-1 min-w-0 flex-1 overflow-x-auto no-scrollbar">
+        <div className="cm-topbar-inner max-w-[1440px] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
+          <div className="cm-topbar-leading flex items-center space-x-1 min-w-0 flex-1 overflow-x-auto no-scrollbar">
             <AssistTip text={"クリックでダッシュボード（案件一覧）に戻ります。\nどの画面からでもホームへ。"} side="bottom">
               <button
                 onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
-                className="shrink-0 mr-2 sm:mr-7 hover:opacity-70 transition-opacity focus:outline-none"
+                className="cm-logo-button shrink-0 mr-2 sm:mr-7 hover:opacity-70 transition-opacity focus:outline-none"
                 aria-label="CM Force ホームへ"
               >
                 <Logo className="h-9 sm:h-11 w-auto" />
               </button>
             </AssistTip>
             {!selectedProject && (
-              <div className="hidden sm:flex items-center space-x-1">
+              <div className="cm-nav-tabs hidden sm:flex items-center space-x-1">
                 <AssistTip text={"案件一覧・絞り込み・新規追加の起点。\nまずはここから案件全体の状況を確認しましょう。"} side="bottom">
                   <button
                     onClick={() => setCurrentTab('dashboard')}
-                    className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ${currentTab === 'dashboard' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                    className={`cm-nav-button shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ${currentTab === 'dashboard' ? 'is-active bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
                     <span className="sm:hidden">ホーム</span>
                     <span className="hidden sm:inline">ダッシュボード</span>
@@ -318,7 +318,7 @@ export default function App() {
                   <AssistTip text={"全社/担当者別の数字（受注・売上・進捗ファネル）を一覧。\n月次レビューや戦略会議の前に開いてください。"} side="bottom">
                     <button
                       onClick={() => setCurrentTab('kpi')}
-                      className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'kpi' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`cm-nav-button shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'kpi' ? 'is-active bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                       aria-label="ケアマックス KPI"
                     >
                       <BarChart3 className="w-4 h-4 sm:mr-1.5" />
@@ -330,7 +330,7 @@ export default function App() {
                   <AssistTip text={"営業企画専用。担当者の追加・編集・部署変更ができます。\n新メンバー入社時に登録してください。"} side="bottom">
                     <button
                       onClick={() => setCurrentTab('staff')}
-                      className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'staff' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`cm-nav-button shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'staff' ? 'is-active bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                       aria-label="担当者管理"
                     >
                       <Users className="w-4 h-4 sm:mr-1.5" />
@@ -342,7 +342,7 @@ export default function App() {
                   <AssistTip text={"営業活動を RPG 風に可視化。チームの稼働や貢献度をゲーム感覚で確認できます。"} side="bottom">
                     <button
                       onClick={() => { setSelectedProjectId(null); setCurrentTab('quest'); }}
-                      className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'quest' ? 'bg-slate-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`cm-nav-button shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center ${currentTab === 'quest' ? 'is-active bg-slate-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
                       aria-label="QUEST"
                     >
                       <Award className={`w-4 h-4 sm:mr-1.5 ${currentTab === 'quest' ? 'text-amber-300' : 'text-orange-500'}`} />
@@ -353,7 +353,7 @@ export default function App() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="cm-toolbar-actions flex items-center gap-1 sm:gap-2 shrink-0">
             <AssistTip text={assistMode
               ? "アシストモード: ON\nボタンやタブにマウスを乗せると説明と次の行動アドバイスが表示されます。クリックで OFF。"
               : "アシストモードを ON にすると、各ボタン・タブの説明と次の行動アドバイスがホバーで表示されます。"
@@ -375,7 +375,7 @@ export default function App() {
             </AssistTip>
             <span className="hidden md:inline text-xs font-semibold text-gray-400">ロール</span>
             <AssistTip text={"現在のログインロール。閲覧/編集できる範囲が決まります。\n変更にはログアウトが必要です。"} side="bottom" wrapClassName="hidden sm:inline-flex">
-              <span className="text-xs sm:text-sm font-bold text-gray-800 bg-white border border-gray-200 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 whitespace-nowrap">
+              <span className="cm-role-pill text-xs sm:text-sm font-bold text-gray-800 bg-white border border-gray-200 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 whitespace-nowrap">
                 {currentRole}
               </span>
             </AssistTip>
@@ -383,7 +383,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-full px-2.5 sm:px-3 py-1.5 transition-colors"
+                className="cm-signout-button inline-flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-full px-2.5 sm:px-3 py-1.5 transition-colors"
                 aria-label="ログアウト"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -394,7 +394,7 @@ export default function App() {
         </div>
       </div>
 
-      <div className={`cm-main max-w-[1440px] mx-auto ${
+      <div className={`cm-main cm-content max-w-[1440px] mx-auto ${
         isQuestView
           ? 'h-[100dvh] overflow-hidden p-0 sm:h-auto sm:overflow-visible sm:px-6 sm:py-10'
           : 'px-3 pt-4 pb-24 sm:px-6 sm:py-10'
@@ -432,7 +432,7 @@ export default function App() {
       </div>
 
       {currentTab !== 'quest' && (
-      <nav className="mobile-bottom-nav fixed inset-x-3 bottom-3 z-50 flex items-center gap-1 rounded-[20px] border border-black/10 bg-white/95 p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.16)] backdrop-blur-xl sm:hidden">
+      <nav className="mobile-bottom-nav cm-mobile-nav fixed inset-x-3 bottom-3 z-50 flex items-center gap-1 rounded-[20px] border border-black/10 bg-white/95 p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.16)] backdrop-blur-xl sm:hidden">
         <button
           type="button"
           onClick={() => { setSelectedProjectId(null); setCurrentTab('dashboard'); }}
