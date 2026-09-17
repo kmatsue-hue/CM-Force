@@ -27,6 +27,22 @@ import MiniArrowDiagram from '../ui/MiniArrowDiagram.jsx';
 import { AssistTip } from '../ui/AssistMode.jsx';
 import ProjectName from '../ui/ProjectName.jsx';
 import { getProjectDisplayName, stripProjectHonorific } from '../utils/projectName.js';
+import { getBallOwnerLabel, getBallOwnerTone, normalizeBallOwner } from '../data/ballOwners.js';
+
+const formatCloseDate = value => value ? String(value).replaceAll('-', '/') : '未設定';
+
+const getCloseDateTone = (project) => {
+  if (!project?.expectedCloseDate) return 'bg-gray-100 text-gray-500 ring-gray-200';
+  if (project.isLost || ['販売契約締結', '施工・納品', '一次保守'].includes(project.status)) {
+    return 'bg-slate-100 text-slate-600 ring-slate-200';
+  }
+  const target = new Date(`${project.expectedCloseDate}T23:59:59`);
+  if (Number.isNaN(target.getTime())) return 'bg-gray-100 text-gray-500 ring-gray-200';
+  const remainingDays = Math.ceil((target.getTime() - Date.now()) / 86400000);
+  if (remainingDays < 0) return 'bg-red-50 text-red-700 ring-red-200';
+  if (remainingDays <= 7) return 'bg-amber-50 text-amber-700 ring-amber-200';
+  return 'bg-blue-50 text-blue-700 ring-blue-200';
+};
 
 const DASHBOARD_MODE_STORAGE_KEY = 'cm-force-dashboard-mode-v1';
 const HEARING_SHEET_FILTER_OPTIONS = ['あり', 'なし'];
@@ -254,6 +270,7 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
       // 担当・期間
       'SOMPOケアソリューションズ担当者',
       'ケアマックス担当者',
+      '現在のボール',
       '開始日',
       'クローズ予定日',
       // 金額
@@ -293,6 +310,7 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
       // 担当・期間
       p.picSetup ?? '',
       p.picCaremax ?? '',
+      getBallOwnerLabel(p.ballOwner),
       p.startDate ?? '',
       p.expectedCloseDate ?? '',
       // 金額
@@ -712,6 +730,9 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                       <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">販売スキーム</th>
                     )}
                     <th className="hidden md:table-cell px-5 py-3 font-semibold text-xs">ステータス</th>
+                    <th className="hidden lg:table-cell px-5 py-3 font-semibold text-xs">現在のボール</th>
+                    <th className="hidden xl:table-cell px-5 py-3 font-semibold text-xs">クローズ予定</th>
+                    <th className="hidden lg:table-cell px-5 py-3 font-semibold text-xs">ヒアリング</th>
                     <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">想定金額</th>
                     {isDetailView && (
                       <th className="px-3 sm:px-5 py-3 font-semibold text-xs">ランク</th>
@@ -722,7 +743,7 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                 <tbody className="divide-y divide-gray-50">
                   {filteredProjects.length === 0 && (
                     <tr>
-                      <td colSpan={isDetailView ? 7 : 4} className="px-5 py-12 text-center text-sm text-gray-400 font-medium">
+                      <td colSpan={isDetailView ? 10 : 7} className="px-5 py-12 text-center text-sm text-gray-400 font-medium">
                         条件に一致する案件がありません
                       </td>
                     </tr>
@@ -735,6 +756,7 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                     const caremaxSalesName = project.picCaremax
                       || caremaxStaffByNumber.get(project.picCaremaxStaffNumber)?.name
                       || '';
+                    const ballOwner = normalizeBallOwner(project.ballOwner);
                     return (
                       <tr
                         key={`${project.id}-${project.updatedAt || index}`}
@@ -758,15 +780,6 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                               </span>
                             )}
                             <ProjectName name={project.name} />
-                            {isDetailView && project.hasIctHearingSheet && (
-                              <span
-                                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-500 ring-1 ring-inset ring-amber-200"
-                                title="ICTヒアリングシート回収済み"
-                                aria-label="ICTヒアリングシート回収済み"
-                              >
-                                <FileText className="h-3.5 w-3.5" strokeWidth={1.8} />
-                              </span>
-                            )}
                             {project.isLost && <span className="ml-1 text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">LOST</span>}
                           </div>
                           {caremaxSalesName && (
@@ -801,6 +814,17 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                                 <span className="ml-1 text-gray-400 tabular-nums">{phaseIdx + 1}/{PHASES.length}</span>
                               </span>
                               <span className="ml-auto font-semibold text-gray-700 tabular-nums">{formatJPY(project.financial.expectedRevenue || 0)}</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                              <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`}>
+                                ボール: {getBallOwnerLabel(ballOwner)}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ring-inset ${getCloseDateTone(project)}`}>
+                                Close: {formatCloseDate(project.expectedCloseDate)}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ring-inset ${project.hasIctHearingSheet ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
+                                ヒアリング {project.hasIctHearingSheet ? 'あり' : 'なし'}
+                              </span>
                             </div>
                             {/* モバイル用 進捗バー */}
                             <MiniArrowDiagram currentPhase={project.status} />
@@ -839,6 +863,21 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                             {project.status} <span className="text-gray-400 font-semibold tabular-nums ml-1">{phaseIdx + 1}/{PHASES.length}</span>
                           </div>
                           <MiniArrowDiagram currentPhase={project.status} />
+                        </td>
+                        <td className="hidden lg:table-cell px-5 py-3.5">
+                          <span className={`inline-flex max-w-[190px] truncate rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`} title={getBallOwnerLabel(ballOwner)}>
+                            {getBallOwnerLabel(ballOwner)}
+                          </span>
+                        </td>
+                        <td className="hidden xl:table-cell px-5 py-3.5">
+                          <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums ring-1 ring-inset ${getCloseDateTone(project)}`}>
+                            {formatCloseDate(project.expectedCloseDate)}
+                          </span>
+                        </td>
+                        <td className="hidden lg:table-cell px-5 py-3.5">
+                          <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${project.hasIctHearingSheet ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
+                            <FileText className="mr-1 h-3.5 w-3.5" />{project.hasIctHearingSheet ? 'あり' : 'なし'}
+                          </span>
                         </td>
                         <td className="hidden sm:table-cell px-5 py-3.5 font-semibold text-gray-700 tabular-nums">
                           {formatJPY(project.financial.expectedRevenue || 0)}

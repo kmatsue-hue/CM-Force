@@ -1,6 +1,8 @@
 import { CONSTRUCTION_PHASE } from './constructionSubtasks.js';
 import { WEB_MEETING_LOG_TYPE, WEB_MEETING_PHASE } from './phases.js';
 
+const hasExpectedRevenue = project => Number(project?.financial?.expectedRevenue) > 0;
+
 // フェーズごとの「次に進めるための条件」レジストリ。
 // 各エントリは { check, message } の配列。check が false を返したら違反。
 // check のシグネチャ: (project, currentPhaseDetail) => boolean
@@ -18,10 +20,18 @@ export const PHASE_ADVANCE_RULES = {
       )),
       message: 'EUとの商談へ進むには、WEB面談可否の「依頼先」と「依頼内容」を専用ログに記録してください。',
     },
+    {
+      check: hasExpectedRevenue,
+      message: 'EUとの商談へ進むには、「機器売上予定額」または「工事売上予定額」を入力し、想定全体売上を1円以上にしてください。',
+    },
   ],
 
   // フェーズ3: EU との商談 → 次回アクション日付の入力
   'EUとの商談': [
+    {
+      check: hasExpectedRevenue,
+      message: '現地調査へ進むには、「機器売上予定額」または「工事売上予定額」を入力し、想定全体売上を1円以上にしてください。',
+    },
     {
       check: (project) => {
         const lastLog = (project.logs ?? [])[0];

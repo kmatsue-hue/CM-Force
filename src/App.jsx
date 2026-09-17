@@ -51,6 +51,7 @@ import { ToastProvider } from './cmforce/ui/Toast.jsx';
 import Logo from './cmforce/ui/Logo.jsx';
 import { AssistProvider, AssistTip } from './cmforce/ui/AssistMode.jsx';
 import { stripProjectHonorific } from './cmforce/utils/projectName.js';
+import { normalizeBallOwner } from './cmforce/data/ballOwners.js';
 
 const ASSIST_STORAGE_KEY = 'cm-force-assist-v1';
 import {
@@ -78,6 +79,7 @@ const normalizeProjectRecord = (project = {}) => ({
   name: stripProjectHonorific(project?.name || ''),
   facilityType: normalizeFacilityType(project?.facilityType),
   hasIctHearingSheet: Boolean(project?.hasIctHearingSheet),
+  ballOwner: normalizeBallOwner(project?.ballOwner),
   endUser: {
     ...(project?.endUser || {}),
     prefecture: normalizePrefecture(project?.endUser?.prefecture)
@@ -219,6 +221,7 @@ export default function App() {
       salesPattern: projectData.salesPattern,
       facilityType: normalizeFacilityType(projectData.facilityType),
       hasIctHearingSheet: false,
+      ballOwner: { type: '', name: '', updatedAt: '' },
       updatedAt: new Date().toISOString(),
       summary: '',
       picSetup: '',

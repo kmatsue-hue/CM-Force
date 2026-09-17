@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PHASES, WEB_MEETING_PHASE } from '../data/phases.js';
 import { CONSTRUCTION_PHASE, CONSTRUCTION_SUBTASK_TEMPLATE } from '../data/constructionSubtasks.js';
+import { BALL_OWNER_OPTIONS } from '../data/ballOwners.js';
 import { useToast } from './Toast.jsx';
 import { AssistTip } from './AssistMode.jsx';
 
@@ -45,12 +46,14 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
   const [subTasks, setSubTasks] = useState(initialSubTasks);
   const [newSubTaskText, setNewSubTaskText] = useState('');
   // 活動ログのインライン入力
-  const [quickLog, setQuickLog] = useState({ content: '', nextAction: '', nextDate: '' });
+  const [quickLog, setQuickLog] = useState({
+    content: '', nextAction: '', nextDate: '', ballOwnerType: '', ballOwnerName: '',
+  });
   const [webMeetingDraft, setWebMeetingDraft] = useState({ requestedTo: '', requestContent: '' });
   const submitQuickLog = () => {
     if (!quickLog.content.trim() || !onAddProjectLog) return;
     onAddProjectLog({ ...quickLog });
-    setQuickLog({ content: '', nextAction: '', nextDate: '' });
+    setQuickLog({ content: '', nextAction: '', nextDate: '', ballOwnerType: '', ballOwnerName: '' });
   };
   const submitWebMeetingLog = () => {
     const requestedTo = webMeetingDraft.requestedTo.trim();
@@ -415,7 +418,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
 
           {/* 活動ログ クイック入力（WEB面談可否は専用ログに置き換え） */}
           {!isWebMeetingPhase && <div className="bg-purple-50/40 border border-purple-100 rounded-xl p-3">
-            <AssistTip text={"商談・電話・メールのやり取りを時系列で残せます。\n「次のアクション + 日付」を入れておくと、活動ログタブやアラート表示に活用されます。\n※ EUとの商談 から進めるには最新ログに日付が必要"} side="bottom">
+            <AssistTip text={"商談・電話・メールのやり取りを時系列で残せます。\n「次のアクション + 日付」を入れておくと、活動ログタブやアラート表示に活用されます。\n※ EUとの商談から進めるには、想定売上金額と最新ログの日付が必要"} side="bottom">
               <h4 className="text-xs font-bold text-gray-600 mb-2 flex items-center cursor-help">
                 <MessageSquare className="w-3.5 h-3.5 mr-1.5 text-purple-500" />
                 活動ログをすばやく追加
@@ -452,6 +455,28 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               >
                 <Plus className="w-3 h-3 mr-1" />追加
               </button>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[190px_1fr]">
+              <select
+                disabled={isLost}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300 disabled:bg-gray-100"
+                value={quickLog.ballOwnerType}
+                onChange={e => setQuickLog({ ...quickLog, ballOwnerType: e.target.value })}
+                aria-label="次のアクションのボール保持者区分"
+              >
+                <option value="">現在のボール（変更なし）</option>
+                {BALL_OWNER_OPTIONS.filter(option => option.value).map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                disabled={isLost || !quickLog.ballOwnerType}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-300 disabled:bg-gray-100"
+                placeholder="ボールを持っている担当者・組織名（任意）"
+                value={quickLog.ballOwnerName}
+                onChange={e => setQuickLog({ ...quickLog, ballOwnerName: e.target.value })}
+              />
             </div>
           </div>}
 
@@ -604,7 +629,7 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
 
         {/* 関連リンク */}
         <div className="bg-gray-50/80 border border-gray-100 rounded-xl p-5 flex flex-col h-full min-h-[16rem]">
-          <AssistTip text={"このフェーズで参照するファイル/ページのリンク集。\n見積書 PDF、提案書 Google Docs、議事録、契約書ドラフト等を URL で添付。\n※ 提案書／見積書提出 から進めるには想定金額または1件以上のリンクが必要"} side="bottom">
+          <AssistTip text={"このフェーズで参照する資料・ページのリンク集。\nPDF等はGoogle Driveなどで共有URL化し、そのURLを貼り付けてください（ファイル本体は保存しません）。\n※ 提案書／見積書提出から進めるには想定金額または1件以上のリンクが必要"} side="bottom">
             <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center cursor-help">
               <LinkIcon className="w-4 h-4 mr-2 text-purple-500" />
               関連リンク ({links.length})
@@ -662,14 +687,14 @@ const PhaseDetailPanel = ({ phase, data, isLost, onUpdate, currentProjectPhase, 
               <input
                 type="text"
                 className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm outline-none text-gray-800 placeholder-gray-400 focus:border-purple-300 focus:bg-white"
-                placeholder="表示名（省略時はURLを表示）"
+                placeholder="資料名（例：第1回商談 議事録PDF）"
                 value={newLinkTitle}
                 onChange={(e) => setNewLinkTitle(e.target.value)}
               />
               <input
                 type="url"
                 className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm outline-none text-gray-800 placeholder-gray-400 focus:border-purple-300 focus:bg-white"
-                placeholder="URL (https://...)"
+                placeholder="PDF・資料の共有URL (https://...)"
                 value={newLinkUrl}
                 onChange={(e) => setNewLinkUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addLink(); }}

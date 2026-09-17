@@ -38,6 +38,7 @@ import PhaseDetailPanel from '../ui/PhaseDetailPanel.jsx';
 import { AssistTip } from '../ui/AssistMode.jsx';
 import ProjectName from '../ui/ProjectName.jsx';
 import { stripProjectHonorific } from '../utils/projectName.js';
+import { BALL_OWNER_OPTIONS, getBallOwnerLabel, getBallOwnerTone, normalizeBallOwner } from '../data/ballOwners.js';
 
 const TAB_HINTS = {
   endUser: 'エンドユーザー（導入先施設）情報。\n企業名・担当者名・連絡先・販売店を確認。\n編集は右上の「編集」ボタンから一括で行えます。',
@@ -100,6 +101,7 @@ const prepareProjectForEdit = (project, staff = []) => {
       },
       facilityType: normalizeFacilityType(normalized.facilityType),
       hasIctHearingSheet: Boolean(normalized.hasIctHearingSheet),
+      ballOwner: normalizeBallOwner(normalized.ballOwner),
     };
   }
   return {
@@ -113,6 +115,7 @@ const prepareProjectForEdit = (project, staff = []) => {
     picCaremaxStaffNumber: assigned.staffNumber,
     facilityType: normalizeFacilityType(normalized.facilityType),
     hasIctHearingSheet: Boolean(normalized.hasIctHearingSheet),
+    ballOwner: normalizeBallOwner(normalized.ballOwner),
   };
 };
 
@@ -203,6 +206,7 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
   const canViewMarginProfit = currentRole !== ROLES.SETUP;
   const marginFlowDisplayName = isPatternOne ? '利益計上サブフロー' : 'マージン支払サブフロー';
   const caremaxSalesStaff = staff.filter(member => member.department === ROLES.EIGYO);
+  const ballOwner = normalizeBallOwner(project.ballOwner);
   const logEntries = (project.logs || []).map(log => ({
     log,
     view: getLogPresentation(log),
@@ -542,12 +546,20 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
   };
 
   const handleSaveInfo = () => {
+    const normalizedEditedBallOwner = normalizeBallOwner(editInfo.ballOwner);
+    const previousBallOwner = normalizeBallOwner(project.ballOwner);
+    const ballOwnerChanged = normalizedEditedBallOwner.type !== previousBallOwner.type
+      || normalizedEditedBallOwner.name !== previousBallOwner.name;
     const sanitizedEditInfo = {
       ...editInfo,
       name: stripProjectHonorific(editInfo.name),
       endUser: {
         ...(editInfo.endUser || {}),
         prefecture: normalizePrefecture(editInfo.endUser?.prefecture),
+      },
+      ballOwner: {
+        ...normalizedEditedBallOwner,
+        updatedAt: ballOwnerChanged ? new Date().toISOString() : previousBallOwner.updatedAt,
       },
     };
     // 販売スキームが変更されていれば、変更者名の入力ダイアログを挟む
@@ -719,6 +731,12 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 <p className="text-sm text-gray-500 mt-4 max-w-3xl leading-6">{project.summary}</p>
               </AssistTip>
             )}
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-semibold text-gray-400">現在のボール</span>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-1 font-bold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`}>
+                {getBallOwnerLabel(ballOwner)}
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
             {!canEdit && (
@@ -885,6 +903,14 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                   </AssistTip>
                   <dd><RankBadge rank={project.rank} /></dd>
                 </div>
+                <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+                  <dt className="text-xs text-gray-400 font-semibold">現在のボール</dt>
+                  <dd>
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`}>
+                      {getBallOwnerLabel(ballOwner)}
+                    </span>
+                  </dd>
+                </div>
                 <div className="grid grid-cols-[140px_1fr] gap-2 items-baseline">
                   <AssistTip text={FIELD_HINTS['開始日']} side="right">
                     <dt className="text-xs text-gray-400 font-semibold cursor-help">開始日</dt>
@@ -997,6 +1023,13 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                           )}
                         </div>
                       )}
+                      {log.ballOwnerType && (
+                        <div className="mt-2">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${getBallOwnerTone(log.ballOwnerType)}`}>
+                            現在のボール: {getBallOwnerLabel({ type: log.ballOwnerType, name: log.ballOwnerName })}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1105,9 +1138,17 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
             updatedAt: new Date().toISOString(),
           })}
           onAddProjectLog={(logData) => {
+            const now = new Date();
+            const nextBallOwner = logData.ballOwnerType
+              ? {
+                  type: logData.ballOwnerType,
+                  name: logData.ballOwnerName?.trim?.() || '',
+                  updatedAt: now.toISOString(),
+                }
+              : normalizeBallOwner(project.ballOwner);
             const logEntry = {
-              id: Date.now(),
-              date: new Date().toISOString().split('T')[0],
+              id: now.getTime(),
+              date: now.toISOString().split('T')[0],
               type: 'activity',
               source: 'manual',
               questRewardStaffNumber: project.picCaremaxStaffNumber || '',
@@ -1116,11 +1157,14 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
               phase: selectedPhase,
               nextAction: logData.nextAction || '',
               nextDate: logData.nextDate || '',
+              ballOwnerType: logData.ballOwnerType || '',
+              ballOwnerName: logData.ballOwnerName?.trim?.() || '',
             };
             onUpdateProject({
               ...project,
+              ballOwner: nextBallOwner,
               logs: [logEntry, ...project.logs],
-              updatedAt: new Date().toISOString(),
+              updatedAt: now.toISOString(),
             });
           }}
           webMeetingLogs={(project.logs || []).filter(log => log.type === WEB_MEETING_LOG_TYPE)}
@@ -1285,6 +1329,35 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                   })}
                 </div>
                 <p className="mt-1 text-[10px] font-medium text-gray-400">回収済みの案件は案件一覧で紙アイコン表示・絞り込み対象になります。</p>
+              </div>
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                <label className="block text-xs font-bold text-gray-700 mb-2">現在のボール保持者</label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <select
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                    value={editInfo.ballOwner?.type || ''}
+                    onChange={e => setEditInfo({
+                      ...editInfo,
+                      ballOwner: { ...normalizeBallOwner(editInfo.ballOwner), type: e.target.value },
+                    })}
+                  >
+                    {BALL_OWNER_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    disabled={!editInfo.ballOwner?.type}
+                    placeholder="担当者・組織名（任意）"
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none disabled:bg-gray-100"
+                    value={editInfo.ballOwner?.name || ''}
+                    onChange={e => setEditInfo({
+                      ...editInfo,
+                      ballOwner: { ...normalizeBallOwner(editInfo.ballOwner), name: e.target.value },
+                    })}
+                  />
+                </div>
+                <p className="mt-2 text-[10px] font-medium text-gray-400">次のステージへ進めるために、現在対応待ちになっている相手を指定します。</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
