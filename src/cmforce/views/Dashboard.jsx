@@ -722,26 +722,26 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                 )}
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto overscroll-x-contain">
+              <table className={`w-full text-left text-sm ${isDetailView ? 'min-w-[1740px]' : ''}`}>
                 <thead className="border-b border-gray-100 text-gray-400">
                   <tr>
-                    <th className="px-3 sm:px-5 py-3 font-semibold text-xs">案件名</th>
+                    <th className={`min-w-[280px] whitespace-nowrap px-3 py-3 text-xs font-semibold sm:px-5 ${isDetailView ? 'sticky left-0 z-20 bg-[#f7f7f8] shadow-[8px_0_14px_-14px_rgba(15,23,42,0.6)]' : ''}`}>案件名</th>
                     {isDetailView && (
-                      <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">都道府県</th>
+                      <th className="min-w-[110px] whitespace-nowrap px-5 py-3 text-xs font-semibold">都道府県</th>
                     )}
                     {isDetailView && (
-                      <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">販売スキーム</th>
+                      <th className="min-w-[150px] whitespace-nowrap px-5 py-3 text-xs font-semibold">販売スキーム</th>
                     )}
-                    <th className="hidden md:table-cell px-5 py-3 font-semibold text-xs">ステータス</th>
-                    <th className="hidden lg:table-cell px-5 py-3 font-semibold text-xs">現在のボール</th>
-                    <th className="hidden xl:table-cell px-5 py-3 font-semibold text-xs">クローズ予定</th>
-                    <th className="hidden lg:table-cell px-5 py-3 font-semibold text-xs">ヒアリング</th>
-                    <th className="hidden sm:table-cell px-5 py-3 font-semibold text-xs">想定金額</th>
+                    <th className={`${isDetailView ? 'table-cell' : 'hidden md:table-cell'} min-w-[300px] whitespace-nowrap px-5 py-3 text-xs font-semibold`}>ステータス</th>
+                    <th className={`${isDetailView ? 'table-cell' : 'hidden lg:table-cell'} min-w-[180px] whitespace-nowrap px-5 py-3 text-xs font-semibold`}>現在のボール</th>
+                    <th className={`${isDetailView ? 'table-cell' : 'hidden xl:table-cell'} min-w-[160px] whitespace-nowrap px-5 py-3 text-xs font-semibold`}>クローズ予定</th>
+                    <th className={`${isDetailView ? 'table-cell' : 'hidden lg:table-cell'} min-w-[140px] whitespace-nowrap px-5 py-3 text-xs font-semibold`}>ヒアリング</th>
+                    <th className={`${isDetailView ? 'table-cell' : 'hidden sm:table-cell'} min-w-[170px] whitespace-nowrap px-5 py-3 text-xs font-semibold`}>想定金額</th>
                     {isDetailView && (
-                      <th className="px-3 sm:px-5 py-3 font-semibold text-xs">ランク</th>
+                      <th className="min-w-[90px] whitespace-nowrap px-3 py-3 text-xs font-semibold sm:px-5">ランク</th>
                     )}
-                    <th className="px-3 sm:px-5 py-3"></th>
+                    <th className="min-w-[64px] px-3 py-3 sm:px-5"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -769,8 +769,8 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                         }`}
                         onClick={() => onSelectProject(project.id)}
                       >
-                        <td className="px-3 sm:px-5 py-3.5">
-                          <div className="flex items-center gap-2 font-bold text-gray-900 leading-tight text-sm sm:text-base">
+                        <td className={`min-w-[280px] px-3 py-4 sm:px-5 ${isDetailView ? 'sticky left-0 z-10 bg-white shadow-[8px_0_14px_-14px_rgba(15,23,42,0.6)] group-hover:bg-gray-50' : ''}`}>
+                          <div className="flex items-center gap-2 whitespace-nowrap text-sm font-bold leading-tight text-gray-900 sm:text-base">
                             {isDetailView && facilityMeta.label && (
                               <span
                                 className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200/80 bg-white px-1.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm shadow-slate-200/40"
@@ -783,16 +783,16 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                                 {facilityMeta.label}
                               </span>
                             )}
-                            <ProjectName name={project.name} />
+                            <ProjectName name={project.name} className="whitespace-nowrap" />
                             {project.isLost && <span className="ml-1 text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">LOST</span>}
                           </div>
                           {caremaxSalesName && (
-                            <div className="mt-1 text-[11px] font-medium text-slate-400 sm:text-xs">
+                            <div className="mt-1 whitespace-nowrap text-[11px] font-medium text-slate-400 sm:text-xs">
                               担当者：<span className="font-semibold text-slate-600">{caremaxSalesName}</span>
                             </div>
                           )}
                           {/* モバイル時のみ補助情報を行内に表示 */}
-                          <div className="sm:hidden mt-2 space-y-1.5">
+                          <div className={`${isDetailView ? 'hidden' : 'sm:hidden'} mt-2 space-y-1.5`}>
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
                               {isDetailView && (() => {
                                   const projectPrefecture = getProjectPrefecture(project);
@@ -835,7 +835,7 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                           </div>
                         </td>
                         {isDetailView && (
-                          <td className="hidden sm:table-cell px-5 py-3.5">
+                          <td className="min-w-[110px] whitespace-nowrap px-5 py-4">
                             {prefecture ? (
                               <span className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-inset ring-slate-200">
                                 {prefecture}
@@ -846,7 +846,7 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                           </td>
                         )}
                         {isDetailView && (
-                          <td className="hidden sm:table-cell px-5 py-3.5">
+                          <td className="min-w-[150px] whitespace-nowrap px-5 py-4">
                             {(() => {
                               const p = project.salesPattern || '';
                               const cfg = p.includes('パターン1') ? { dot: 'bg-sky-500',    text: 'text-sky-700',    short: '①完全卸し' }
@@ -862,37 +862,37 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                             })()}
                           </td>
                         )}
-                        <td className="hidden min-w-[250px] px-5 py-4 md:table-cell">
+                        <td className={`${isDetailView ? 'table-cell' : 'hidden md:table-cell'} min-w-[300px] px-5 py-4`}>
                           <div className={`mb-1.5 text-sm font-extrabold tracking-tight ${project.isLost ? 'text-gray-500' : 'text-gray-900'}`}>
                             {project.status} <span className="ml-1 text-xs font-bold tabular-nums text-gray-400">{phaseIdx + 1}/{PHASES.length}</span>
                           </div>
                           <MiniArrowDiagram currentPhase={project.status} />
                         </td>
-                        <td className="hidden px-5 py-4 lg:table-cell">
+                        <td className={`${isDetailView ? 'table-cell' : 'hidden lg:table-cell'} min-w-[180px] px-5 py-4`}>
                           <span className={`inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full px-3 py-1.5 text-xs font-extrabold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`} title={getBallOwnerLabel(ballOwner)}>
                             <CircleDot className="h-4 w-4 shrink-0" strokeWidth={2.2} />
                             <span className="truncate">{getDashboardBallOwnerLabel(ballOwner)}</span>
                           </span>
                         </td>
-                        <td className="hidden px-5 py-4 xl:table-cell">
+                        <td className={`${isDetailView ? 'table-cell' : 'hidden xl:table-cell'} min-w-[160px] px-5 py-4`}>
                           <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-extrabold tabular-nums ring-1 ring-inset ${getCloseDateTone(project)}`}>
                             <Calendar className="h-4 w-4" strokeWidth={2.2} />
                             {formatCloseDate(project.expectedCloseDate)}
                           </span>
                         </td>
-                        <td className="hidden px-5 py-4 lg:table-cell">
+                        <td className={`${isDetailView ? 'table-cell' : 'hidden lg:table-cell'} min-w-[140px] px-5 py-4`}>
                           <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-extrabold ring-1 ring-inset ${project.hasIctHearingSheet ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
                             <FileText className="h-4 w-4" strokeWidth={2.2} />{project.hasIctHearingSheet ? 'あり' : 'なし'}
                           </span>
                         </td>
-                        <td className="hidden px-5 py-4 sm:table-cell">
+                        <td className={`${isDetailView ? 'table-cell' : 'hidden sm:table-cell'} min-w-[170px] px-5 py-4`}>
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-50 px-3 py-1.5 text-sm font-extrabold tabular-nums text-slate-700 ring-1 ring-inset ring-slate-100">
                             <JapaneseYen className="h-4 w-4 text-slate-400" strokeWidth={2.3} />
                             {formatJPY(project.financial.expectedRevenue || 0)}
                           </span>
                         </td>
                         {isDetailView && (
-                          <td className="px-3 sm:px-5 py-3.5">
+                          <td className="min-w-[90px] whitespace-nowrap px-3 py-4 sm:px-5">
                             <RankBadge rank={project.rank} />
                           </td>
                         )}
