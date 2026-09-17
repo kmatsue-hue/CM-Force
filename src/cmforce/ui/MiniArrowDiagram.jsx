@@ -5,7 +5,7 @@ import { PHASES } from '../data/phases.js';
 const MiniArrowDiagram = ({ currentPhase }) => {
   const currentIndex = PHASES.indexOf(currentPhase);
   return (
-    <div className="flex items-center w-full min-w-[140px] mt-2 py-1">
+    <div className="mt-2 flex w-full min-w-[180px] items-center py-1.5" aria-label={`進捗 ${currentIndex + 1}/${PHASES.length}`}>
       {PHASES.map((phase, index) => {
         const isCompleted = index < currentIndex;
         const isActive = index === currentIndex;
@@ -13,16 +13,16 @@ const MiniArrowDiagram = ({ currentPhase }) => {
           <React.Fragment key={phase}>
             <div
               className={`flex-shrink-0 rounded-full transition-all duration-300 ${
-                isCompleted ? 'w-2 h-2 bg-purple-600' :
-                isActive ? 'w-3.5 h-3.5 bg-purple-600 ring-[4px] ring-purple-100 z-10 relative' :
-                'w-2 h-2 bg-gray-200'
+                isCompleted ? 'h-2.5 w-2.5 bg-purple-600 shadow-[0_0_0_1px_rgba(126,34,206,0.12)]' :
+                isActive ? 'relative z-10 h-4 w-4 bg-purple-600 ring-[5px] ring-purple-100 shadow-sm' :
+                'h-2.5 w-2.5 bg-slate-200 ring-1 ring-white'
               }`}
               title={phase}
             />
             {index < PHASES.length - 1 && (
               <div
-                className={`flex-1 h-[2px] mx-[2px] transition-all duration-300 rounded-full ${
-                  index < currentIndex ? 'bg-purple-600' : 'bg-gray-100'
+                className={`mx-1 h-[3px] flex-1 rounded-full transition-all duration-300 ${
+                  index < currentIndex ? 'bg-purple-500' : 'bg-slate-100'
                 }`}
               />
             )}

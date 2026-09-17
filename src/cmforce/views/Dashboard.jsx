@@ -6,9 +6,11 @@ import {
   Calendar,
   Check,
   ChevronRight,
+  CircleDot,
   FileText,
   Download,
   Filter,
+  JapaneseYen,
   Plus,
   Search,
   TrendingUp,
@@ -30,6 +32,8 @@ import { getProjectDisplayName, stripProjectHonorific } from '../utils/projectNa
 import { getBallOwnerLabel, getBallOwnerTone, normalizeBallOwner } from '../data/ballOwners.js';
 
 const formatCloseDate = value => value ? String(value).replaceAll('-', '/') : '未設定';
+const getDashboardBallOwnerLabel = owner =>
+  getBallOwnerLabel(owner).replace('SOMPOケアソリューションズ', 'SOMPOケア');
 
 const getCloseDateTone = (project) => {
   if (!project?.expectedCloseDate) return 'bg-gray-100 text-gray-500 ring-gray-200';
@@ -816,14 +820,14 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                               <span className="ml-auto font-semibold text-gray-700 tabular-nums">{formatJPY(project.financial.expectedRevenue || 0)}</span>
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                              <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`}>
-                                ボール: {getBallOwnerLabel(ballOwner)}
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-bold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`}>
+                                <CircleDot className="h-3.5 w-3.5" />ボール: {getDashboardBallOwnerLabel(ballOwner)}
                               </span>
-                              <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ring-inset ${getCloseDateTone(project)}`}>
-                                Close: {formatCloseDate(project.expectedCloseDate)}
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-bold ring-1 ring-inset ${getCloseDateTone(project)}`}>
+                                <Calendar className="h-3.5 w-3.5" />{formatCloseDate(project.expectedCloseDate)}
                               </span>
-                              <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ring-inset ${project.hasIctHearingSheet ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
-                                ヒアリング {project.hasIctHearingSheet ? 'あり' : 'なし'}
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-bold ring-1 ring-inset ${project.hasIctHearingSheet ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
+                                <FileText className="h-3.5 w-3.5" />ヒアリング {project.hasIctHearingSheet ? 'あり' : 'なし'}
                               </span>
                             </div>
                             {/* モバイル用 進捗バー */}
@@ -858,36 +862,41 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                             })()}
                           </td>
                         )}
-                        <td className="hidden md:table-cell px-5 py-3.5 min-w-[200px]">
-                          <div className={`text-xs font-bold mb-1.5 ${project.isLost ? 'text-gray-500' : 'text-gray-900'}`}>
-                            {project.status} <span className="text-gray-400 font-semibold tabular-nums ml-1">{phaseIdx + 1}/{PHASES.length}</span>
+                        <td className="hidden min-w-[250px] px-5 py-4 md:table-cell">
+                          <div className={`mb-1.5 text-sm font-extrabold tracking-tight ${project.isLost ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {project.status} <span className="ml-1 text-xs font-bold tabular-nums text-gray-400">{phaseIdx + 1}/{PHASES.length}</span>
                           </div>
                           <MiniArrowDiagram currentPhase={project.status} />
                         </td>
-                        <td className="hidden lg:table-cell px-5 py-3.5">
-                          <span className={`inline-flex max-w-[190px] truncate rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`} title={getBallOwnerLabel(ballOwner)}>
-                            {getBallOwnerLabel(ballOwner)}
+                        <td className="hidden px-5 py-4 lg:table-cell">
+                          <span className={`inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full px-3 py-1.5 text-xs font-extrabold ring-1 ring-inset ${getBallOwnerTone(ballOwner.type)}`} title={getBallOwnerLabel(ballOwner)}>
+                            <CircleDot className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+                            <span className="truncate">{getDashboardBallOwnerLabel(ballOwner)}</span>
                           </span>
                         </td>
-                        <td className="hidden xl:table-cell px-5 py-3.5">
-                          <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums ring-1 ring-inset ${getCloseDateTone(project)}`}>
+                        <td className="hidden px-5 py-4 xl:table-cell">
+                          <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-extrabold tabular-nums ring-1 ring-inset ${getCloseDateTone(project)}`}>
+                            <Calendar className="h-4 w-4" strokeWidth={2.2} />
                             {formatCloseDate(project.expectedCloseDate)}
                           </span>
                         </td>
-                        <td className="hidden lg:table-cell px-5 py-3.5">
-                          <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${project.hasIctHearingSheet ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
-                            <FileText className="mr-1 h-3.5 w-3.5" />{project.hasIctHearingSheet ? 'あり' : 'なし'}
+                        <td className="hidden px-5 py-4 lg:table-cell">
+                          <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-extrabold ring-1 ring-inset ${project.hasIctHearingSheet ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
+                            <FileText className="h-4 w-4" strokeWidth={2.2} />{project.hasIctHearingSheet ? 'あり' : 'なし'}
                           </span>
                         </td>
-                        <td className="hidden sm:table-cell px-5 py-3.5 font-semibold text-gray-700 tabular-nums">
-                          {formatJPY(project.financial.expectedRevenue || 0)}
+                        <td className="hidden px-5 py-4 sm:table-cell">
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-50 px-3 py-1.5 text-sm font-extrabold tabular-nums text-slate-700 ring-1 ring-inset ring-slate-100">
+                            <JapaneseYen className="h-4 w-4 text-slate-400" strokeWidth={2.3} />
+                            {formatJPY(project.financial.expectedRevenue || 0)}
+                          </span>
                         </td>
                         {isDetailView && (
                           <td className="px-3 sm:px-5 py-3.5">
                             <RankBadge rank={project.rank} />
                           </td>
                         )}
-                        <td className="px-5 py-3.5 text-right">
+                        <td className="px-5 py-4 text-right">
                           {project.isLost ? (
                             <button
                               onClick={e => { e.stopPropagation(); setLostInfoModal(project); }}
@@ -896,7 +905,9 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                               失注情報
                             </button>
                           ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-purple-600 inline" />
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400 ring-1 ring-inset ring-slate-200 transition-all group-hover:bg-purple-50 group-hover:text-purple-700 group-hover:ring-purple-200">
+                              <ChevronRight className="h-5 w-5" strokeWidth={2.3} />
+                            </span>
                           )}
                         </td>
                       </tr>
