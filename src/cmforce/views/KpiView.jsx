@@ -14,12 +14,22 @@ import { PHASES } from '../data/phases.js';
 import { formatJPYShort } from '../utils/format.js';
 import Card from '../ui/Card.jsx';
 import KpiDetailView from './KpiDetailView.jsx';
+import {
+  LOST_CATEGORY_REVISIT,
+  getLostCategoryLabel,
+  getLostEventCount,
+  getPastLostCount,
+} from '../data/revisit.js';
 
 // --- ケアマックス KPI ビュー（企画部・営業部のみ閲覧可） ---
 const KpiView = ({ projects, onSelectProject }) => {
   const [selectedKpi, setSelectedKpi] = useState(null);
   const active = projects.filter(p => !p.isLost);
   const lost = projects.filter(p => p.isLost);
+  // 失注の延べ件数（再アタックで復活した案件の過去の失注も数える）
+  const lostEventCount = projects.reduce((sum, p) => sum + getLostEventCount(p), 0);
+  const revisitWaitingCount = lost.filter(p => p.lostInfo?.category === LOST_CATEGORY_REVISIT).length;
+  const reattackActiveCount = active.filter(p => getPastLostCount(p) > 0).length;
 
   const handleExportCsv = () => {
     const esc = (v) => {
@@ -35,6 +45,7 @@ const KpiView = ({ projects, onSelectProject }) => {
       '想定売上', 'SOMPOケアソリューションズ卸価格', '小売価格', '獲得利益額',
       'SOMPOケアソリューションズ担当', '概要',
       '失注日', '失注理由', '競合情報',
+      '失注区分', '再浮上時期', '再浮上のきっかけ', '再浮上したらやること', '過去の失注回数',
     ];
     const rows = projects.map(p => [
       p.id, p.name, p.status, p.isLost ? '失注' : '進行中', p.rank, p.salesPattern,
@@ -49,6 +60,11 @@ const KpiView = ({ projects, onSelectProject }) => {
       (p.financial?.expectedRevenue || 0) - (p.financial?.wholesalePriceSetup || 0),
       p.picSetup, p.summary,
       p.lostInfo?.date ?? '', p.lostInfo?.reason ?? '', p.lostInfo?.competitor ?? '',
+      p.isLost ? getLostCategoryLabel(p.lostInfo?.category) : '',
+      p.isLost ? (p.lostInfo?.revisitDate ?? '') : '',
+      p.isLost ? (p.lostInfo?.revisitTrigger ?? '') : '',
+      p.isLost ? (p.lostInfo?.revisitNote ?? '') : '',
+      getPastLostCount(p) || '',
     ].map(esc).join(','));
     const csv = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -106,7 +122,12 @@ const KpiView = ({ projects, onSelectProject }) => {
 
   // --- ケアマックス KPI 目標 ---
   const phaseIdx = (ph) => PHASES.indexOf(ph);
-  const reachedPhase = (p, ph) => phaseIdx(p.status) >= phaseIdx(ph);
+  // 再アタックで「案件発掘」に戻った案件も、失注前に到達したフェーズまでは達成済みとして数える
+  const highestPhaseIdx = (p) => Math.max(
+    phaseIdx(p.status),
+    ...(p.lostHistory || []).map(entry => phaseIdx(entry?.statusAtLost)),
+  );
+  const reachedPhase = (p, ph) => highestPhaseIdx(p) >= phaseIdx(ph);
   const kpiTargets = [
     {
       key: 'hearing',
@@ -297,7 +318,8 @@ const KpiView = ({ projects, onSelectProject }) => {
             <div>
               <p className="text-sm font-semibold text-gray-500">受注率</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">{winRate}<span className="text-sm font-medium text-gray-500 ml-1">%</span></p>
-              <p className="text-xs text-gray-400 mt-1">失注 {lost.length}件</p>
+              <p className="text-xs text-gray-400 mt-1">失注中 {lost.length}件（うち来季再挑戦 {revisitWaitingCount}件）</p>
+              <p className="text-xs text-gray-400 mt-0.5">失注 延べ{lostEventCount}件・再アタック中 {reattackActiveCount}件</p>
             </div>
             <div className="p-3 bg-amber-50 rounded-xl"><Target className="w-6 h-6 text-amber-600" /></div>
           </div>

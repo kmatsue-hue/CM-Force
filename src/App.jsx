@@ -426,6 +426,7 @@ export default function App() {
             staff={staff}
             onSelectProject={setSelectedProjectId}
             onAddProject={handleAddProject}
+            onUpdateProject={canEdit ? handleUpdateProject : undefined}
             canViewProfit={canViewKpi}
             canExportCsv={currentRole === ROLES.KIKAKU || currentRole === ROLES.SETUP}
             canEdit={canEdit}

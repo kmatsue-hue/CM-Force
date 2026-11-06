@@ -39,6 +39,20 @@ import { AssistTip } from '../ui/AssistMode.jsx';
 import ProjectName from '../ui/ProjectName.jsx';
 import { stripProjectHonorific } from '../utils/projectName.js';
 import { BALL_OWNER_OPTIONS, getBallOwnerLabel, getBallOwnerTone, normalizeBallOwner } from '../data/ballOwners.js';
+import LostRecordModal from '../ui/LostRecordModal.jsx';
+import RevisitActionModal from '../ui/RevisitActionModal.jsx';
+import {
+  LOST_CATEGORY_REVISIT,
+  buildLostCanceledProject,
+  buildLostInfoEditedProject,
+  buildLostProject,
+  buildReattackProject,
+  formatRevisitDate,
+  getLostCategoryLabel,
+  getPastLostCount,
+  getRevisitStatus,
+  getRevisitStatusLabel,
+} from '../data/revisit.js';
 
 const TAB_HINTS = {
   endUser: 'エンドユーザー（導入先施設）情報。\n企業名・担当者名・連絡先・販売店を確認。\n編集は右上の「編集」ボタンから一括で行えます。',
@@ -176,9 +190,10 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
   const [newLog, setNewLog] = useState({ content: '', nextAction: '', nextDate: '' });
   const [isAddingLog, setIsAddingLog] = useState(false);
   const [logPhaseFilter, setLogPhaseFilter] = useState('all');
-  const [showLostConfirm, setShowLostConfirm] = useState(false);
-  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
-  const [lostForm, setLostForm] = useState({ reason: '', competitor: '' });
+  // 失注モーダル: null | 'create'（失注として記録）| 'edit'（失注情報の編集）
+  const [lostModalMode, setLostModalMode] = useState(null);
+  // 失注中の操作: null | 'reattack'（再アタック開始）| 'cancelLost'（失注の取り消し）
+  const [revisitAction, setRevisitAction] = useState(null);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showMarginBranchModal, setShowMarginBranchModal] = useState(false);
   const [branchSelectByName, setBranchSelectByName] = useState('');
@@ -638,25 +653,22 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
     setIsAddingLog(false);
   };
 
-  const handleMarkAsLost = () => {
-    onUpdateProject({
-      ...project,
-      isLost: true,
-      lostInfo: {
-        reason: lostForm.reason,
-        competitor: lostForm.competitor,
-        date: new Date().toISOString().split('T')[0]
-      },
-      updatedAt: new Date().toISOString()
-    });
-    setShowLostConfirm(false);
-    setLostForm({ reason: '', competitor: '' });
+  const handleSubmitLostForm = (form) => {
+    onUpdateProject(lostModalMode === 'edit'
+      ? buildLostInfoEditedProject(project, form)
+      : buildLostProject(project, form));
+    setLostModalMode(null);
   };
 
-  const handleRestore = () => {
-    onUpdateProject({ ...project, isLost: false, updatedAt: new Date().toISOString() });
-    setShowRestoreConfirm(false);
+  const handleConfirmRevisitAction = ({ actor }) => {
+    if (revisitAction === 'reattack') onUpdateProject(buildReattackProject(project, actor));
+    if (revisitAction === 'cancelLost') onUpdateProject(buildLostCanceledProject(project, actor));
+    setRevisitAction(null);
   };
+
+  const lostInfo = project.lostInfo || {};
+  const revisitStatus = getRevisitStatus(project);
+  const pastLostCount = getPastLostCount(project);
 
   const patternColor = project.salesPattern?.includes('パターン1') ? 'sky' :
     project.salesPattern?.includes('パターン2') ? 'yellow' :
@@ -708,8 +720,13 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 </span>
               )}
               {isLost && (
-                <AssistTip text={"失注済み案件。\n進行操作は無効化されます。「案件を復活させる」ボタンで戻せます。"} side="bottom">
-                  <Badge color="red">LOST</Badge>
+                <AssistTip text={"失注済み案件。\n進行操作は無効化されます。「再アタック開始」で「案件発掘」から再スタートできます。"} side="bottom">
+                  <Badge color="red">LOST・{getLostCategoryLabel(lostInfo.category)}</Badge>
+                </AssistTip>
+              )}
+              {!isLost && pastLostCount > 0 && (
+                <AssistTip text={"過去に失注し、再アタックで再スタートした案件です。\n失注の履歴は活動ログにも残っています。"} side="bottom">
+                  <Badge color="purple">再アタック中（過去の失注 {pastLostCount}回）</Badge>
                 </AssistTip>
               )}
             </div>
@@ -766,19 +783,29 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
                 </button>
               </AssistTip>
             )}
-            {canEdit && (isLost ? (
-              <AssistTip text={"失注扱いを解除して通常の進行案件に戻します。\nお詫び訪問→再提案などの再アタックフロー時に使用。"} side="bottom">
+            {canEdit && isLost && (
+              <AssistTip text={"失注の区分（来季再挑戦／完全失注）と再浮上の時期を見直します。\n区分が「未分類」の失注はここで区分を付けてください。"} side="bottom">
                 <button
-                  onClick={() => setShowRestoreConfirm(true)}
+                  onClick={() => setLostModalMode('edit')}
+                  className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm"
+                >
+                  失注情報を編集
+                </button>
+              </AssistTip>
+            )}
+            {canEdit && (isLost ? (
+              <AssistTip text={"「案件発掘」から再スタートします。\n施設情報・メモ・活動ログは残り、今回の失注は履歴に残ります。"} side="bottom">
+                <button
+                  onClick={() => setRevisitAction('reattack')}
                   className="px-4 py-2 text-sm font-bold text-purple-600 bg-purple-50 border border-purple-100 rounded-full hover:bg-purple-100 shadow-sm"
                 >
-                  案件を復活させる
+                  再アタック開始
                 </button>
               </AssistTip>
             ) : (
-              <AssistTip text={"案件を「失注」として記録します。\n失注理由・競合先を入力するモーダルが開きます。\nKPI 集計の母数になるので必ず記録を。"} side="bottom">
+              <AssistTip text={"案件を「失注」として記録します。\n区分（来季再挑戦／完全失注）・失注理由・競合先を入力するモーダルが開きます。\nKPI 集計の母数になるので必ず記録を。"} side="bottom">
                 <button
-                  onClick={() => setShowLostConfirm(true)}
+                  onClick={() => setLostModalMode('create')}
                   className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 shadow-sm"
                 >
                   失注として記録
@@ -788,6 +815,55 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
           </div>
         </div>
       </div>
+
+      {/* 失注情報（失注中のみ） */}
+      {isLost && (
+        <Card className={`p-4 sm:p-5 ${lostInfo.category === LOST_CATEGORY_REVISIT ? 'border-purple-100 bg-purple-50/40' : ''}`}>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+            <div>
+              <p className="text-[11px] font-bold text-gray-400">失注の区分</p>
+              <p className={`font-bold ${lostInfo.category ? 'text-gray-900' : 'text-amber-600'}`}>
+                {getLostCategoryLabel(lostInfo.category)}
+                {!lostInfo.category && canEdit && <span className="ml-2 text-xs font-semibold">（「失注情報を編集」で区分を付けてください）</span>}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-gray-400">失注日</p>
+              <p className="font-semibold text-gray-700 tabular-nums">{formatRevisitDate(lostInfo.date)}</p>
+            </div>
+            {lostInfo.category === LOST_CATEGORY_REVISIT && (
+              <>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400">再浮上の時期</p>
+                  <p className="font-bold text-purple-700 tabular-nums">
+                    {formatRevisitDate(lostInfo.revisitDate)}
+                    {revisitStatus && <span className="ml-2 text-xs font-semibold text-gray-500">{getRevisitStatusLabel(revisitStatus)}</span>}
+                  </p>
+                </div>
+                {lostInfo.revisitTrigger && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-400">きっかけ</p>
+                    <p className="font-semibold text-gray-700">{lostInfo.revisitTrigger}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {(lostInfo.revisitNote || lostInfo.reason || lostInfo.competitor) && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-3 text-xs">
+              {lostInfo.category === LOST_CATEGORY_REVISIT && lostInfo.revisitNote && (
+                <p className="rounded-lg bg-white px-3 py-2 text-gray-700 border border-purple-100"><span className="font-bold text-purple-700">再浮上したらやること：</span>{lostInfo.revisitNote}</p>
+              )}
+              {lostInfo.reason && (
+                <p className="rounded-lg bg-white px-3 py-2 text-gray-700 border border-gray-100 whitespace-pre-wrap"><span className="font-bold text-gray-500">失注理由：</span>{lostInfo.reason}</p>
+              )}
+              {lostInfo.competitor && (
+                <p className="rounded-lg bg-white px-3 py-2 text-gray-700 border border-gray-100"><span className="font-bold text-gray-500">競合：</span>{lostInfo.competitor}</p>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* 情報タブ（クリックで詳細展開） */}
       <Card className="p-0 overflow-hidden">
@@ -1478,57 +1554,24 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
         </div>
       )}
 
-      {/* 失注確認 */}
-      {showLostConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mr-3">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
-                </div>
-                <h4 className="text-lg font-bold text-gray-900">失注として記録</h4>
-              </div>
-              <button onClick={() => { setShowLostConfirm(false); setLostForm({ reason: '', competitor: '' }); }} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-500 mb-5 ml-[52px]">
-              案件は一覧に残りますが、KPI計算から除外されます。
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  失注理由
-                </label>
-                <textarea
-                  className="w-full h-24 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-300 focus:bg-white focus:outline-none resize-none transition-all"
-                  placeholder="例：価格面での折り合いがつかなかった、競合製品に決定した 等"
-                  value={lostForm.reason}
-                  onChange={e => setLostForm({ ...lostForm, reason: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  競合情報
-                  <span className="ml-2 text-xs font-normal text-gray-400">（競合製品・企業名など）</span>
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 font-semibold focus:ring-2 focus:ring-red-300 focus:border-red-300 focus:bg-white focus:outline-none transition-all"
-                  placeholder="例：〇〇社製品、△△システム 等"
-                  value={lostForm.competitor}
-                  onChange={e => setLostForm({ ...lostForm, competitor: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-3 border-t border-gray-100 pt-4 mt-5">
-              <button onClick={() => { setShowLostConfirm(false); setLostForm({ reason: '', competitor: '' }); }} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
-              <button onClick={handleMarkAsLost} className="px-5 py-2 rounded-full text-sm font-bold bg-red-600 text-white hover:bg-red-700 shadow-sm">失注として記録する</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 失注の記録・失注情報の編集 */}
+      <LostRecordModal
+        open={lostModalMode !== null}
+        mode={lostModalMode || "create"}
+        initialValue={lostModalMode === "edit" ? lostInfo : undefined}
+        onSubmit={handleSubmitLostForm}
+        onCancel={() => setLostModalMode(null)}
+      />
+
+      {/* 再アタック開始・失注の取り消し */}
+      <RevisitActionModal
+        open={revisitAction !== null}
+        action={revisitAction}
+        project={project}
+        onConfirm={handleConfirmRevisitAction}
+        onCancel={() => setRevisitAction(null)}
+        onSwitchAction={setRevisitAction}
+      />
 
       {/* マージン分岐選択モーダル（施工・納品 → 次フェーズ） */}
       {showMarginBranchModal && (
@@ -1651,20 +1694,6 @@ const ProjectDetail = ({ project, onBack, onUpdateProject, onDeleteProject, canE
             </label>
             <div className="flex justify-end mt-5 pt-4 border-t border-gray-100">
               <button onClick={() => { setShowBranchModal(false); setBranchSelectByName(''); }} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 復活確認 */}
-      {showRestoreConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 shadow-2xl w-96">
-            <h4 className="text-lg font-bold text-gray-900 mb-4">案件を復活させる</h4>
-            <p className="text-sm text-gray-600 mb-6">この案件を進行中に戻しますか？</p>
-            <div className="flex justify-end space-x-3">
-              <button onClick={() => setShowRestoreConfirm(false)} className="px-5 py-2 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100">キャンセル</button>
-              <button onClick={handleRestore} className="px-5 py-2 rounded-full text-sm font-bold bg-purple-600 text-white hover:bg-purple-700">復活させる</button>
             </div>
           </div>
         </div>

@@ -30,6 +30,15 @@ import { AssistTip } from '../ui/AssistMode.jsx';
 import ProjectName from '../ui/ProjectName.jsx';
 import { getProjectDisplayName, stripProjectHonorific } from '../utils/projectName.js';
 import { getBallOwnerLabel, getBallOwnerTone, normalizeBallOwner } from '../data/ballOwners.js';
+import RevisitList from '../ui/RevisitList.jsx';
+import {
+  LOST_CATEGORY_REVISIT,
+  formatRevisitDate,
+  getLostCategoryLabel,
+  getPastLostCount,
+  getRevisitStatus,
+  getRevisitStatusLabel,
+} from '../data/revisit.js';
 
 const formatCloseDate = value => value ? String(value).replaceAll('-', '/') : '未設定';
 const getDashboardBallOwnerLabel = owner =>
@@ -71,7 +80,7 @@ const cloneFilterConfig = (config) => ({
 });
 
 // --- ダッシュボード ---
-const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canViewProfit = false, canExportCsv = false, canEdit = true, canSwitchDashboardMode = false }) => {
+const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, onUpdateProject, canViewProfit = false, canExportCsv = false, canEdit = true, canSwitchDashboardMode = false }) => {
   // 企画部のみ表示する SOMPOケアソリューションズ / テクノスジャパン 切替スイッチ
   // モードは localStorage に保持しておきリロード後も復元される
   const [dashboardMode, setDashboardMode] = useState(() => {
@@ -298,6 +307,11 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
       '失注理由',
       '失注時の競合先',
       '失注日',
+      '失注区分',
+      '再浮上時期',
+      '再浮上のきっかけ',
+      '再浮上したらやること',
+      '過去の失注回数',
       // メタ
       '更新日時',
       'ICTヒアリングシート',
@@ -341,6 +355,11 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
       p.lostInfo?.reason ?? '',
       p.lostInfo?.competitor ?? '',
       p.lostInfo?.date ?? '',
+      p.isLost ? getLostCategoryLabel(p.lostInfo?.category) : '',
+      p.isLost ? (p.lostInfo?.revisitDate ?? '') : '',
+      p.isLost ? (p.lostInfo?.revisitTrigger ?? '') : '',
+      p.isLost ? (p.lostInfo?.revisitNote ?? '') : '',
+      getPastLostCount(p) || '',
       // メタ
       p.updatedAt ?? '',
       getHearingSheetLabel(p),
@@ -477,6 +496,20 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
           <RankPieChart rankCounts={rankCounts} />
         </Card>
       </div>
+
+      {/* 再浮上リスト（来季再挑戦の失注案件） */}
+      <RevisitList
+        projects={projects}
+        canEdit={canEdit && Boolean(onUpdateProject)}
+        onSelectProject={onSelectProject}
+        onUpdateProject={onUpdateProject}
+        getOwnerName={(project) => project.picCaremax || caremaxStaffByNumber.get(project.picCaremaxStaffNumber)?.name || ''}
+        onShowLostProjects={() => {
+          const next = { ...createEmptyFilterConfig(), lostOnly: true };
+          setFilterConfig(next);
+          setDraftFilterConfig(cloneFilterConfig(next));
+        }}
+      />
 
       <div className="space-y-6">
         {/* 案件一覧 */}
@@ -784,7 +817,18 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
                               </span>
                             )}
                             <ProjectName name={project.name} className="whitespace-nowrap" />
-                            {project.isLost && <span className="ml-1 text-[10px] font-bold text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">LOST</span>}
+                            {project.isLost && (
+                              <span className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                project.lostInfo?.category === LOST_CATEGORY_REVISIT
+                                  ? 'text-purple-700 bg-purple-100'
+                                  : project.lostInfo?.category ? 'text-gray-500 bg-gray-200' : 'text-amber-700 bg-amber-100'
+                              }`}>
+                                LOST・{getLostCategoryLabel(project.lostInfo?.category)}
+                              </span>
+                            )}
+                            {!project.isLost && getPastLostCount(project) > 0 && (
+                              <span className="ml-1 text-[10px] font-bold text-purple-700 bg-purple-50 ring-1 ring-inset ring-purple-200 px-1.5 py-0.5 rounded">再アタック</span>
+                            )}
                           </div>
                           {caremaxSalesName && (
                             <div className="mt-1 whitespace-nowrap text-[11px] font-medium text-slate-400 sm:text-xs">
@@ -946,14 +990,36 @@ const Dashboard = ({ projects, staff = [], onSelectProject, onAddProject, canVie
             </div>
             {/* 本文 */}
             <div className="px-6 py-5 space-y-5">
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> 失注日
-                </p>
-                <p className="text-sm font-semibold text-gray-700">
-                  {lostInfoModal.lostInfo?.date || '—'}
-                </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" /> 失注日
+                  </p>
+                  <p className="text-sm font-semibold text-gray-700">
+                    {lostInfoModal.lostInfo?.date || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">失注の区分</p>
+                  <p className={`text-sm font-bold ${lostInfoModal.lostInfo?.category ? 'text-gray-800' : 'text-amber-600'}`}>
+                    {getLostCategoryLabel(lostInfoModal.lostInfo?.category)}
+                  </p>
+                </div>
               </div>
+              {lostInfoModal.lostInfo?.category === LOST_CATEGORY_REVISIT && (
+                <div className="rounded-xl border border-purple-100 bg-purple-50/50 px-4 py-3 space-y-1.5 text-sm">
+                  <p className="font-bold text-purple-700 tabular-nums">
+                    再浮上 {formatRevisitDate(lostInfoModal.lostInfo?.revisitDate)}
+                    <span className="ml-2 text-xs font-semibold text-gray-500">{getRevisitStatusLabel(getRevisitStatus(lostInfoModal))}</span>
+                  </p>
+                  {lostInfoModal.lostInfo?.revisitTrigger && (
+                    <p className="text-xs text-gray-600">きっかけ：{lostInfoModal.lostInfo.revisitTrigger}</p>
+                  )}
+                  {lostInfoModal.lostInfo?.revisitNote && (
+                    <p className="text-xs text-gray-600">やること：{lostInfoModal.lostInfo.revisitNote}</p>
+                  )}
+                </div>
+              )}
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">失注理由</p>
                 {lostInfoModal.lostInfo?.reason ? (
